@@ -50,3 +50,28 @@ def test_randomized_roundtrip(n, seed):
     combined = core.interleave(streams)
     result = core.deinterleave(combined, n)
     assert result == streams
+
+
+def test_checksums_empty():
+    crc32_hex, sha256_hex = core.checksums(b"")
+    assert crc32_hex == "00000000"
+    assert sha256_hex == (
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    )
+
+
+def test_checksums_crc32_known_check_value():
+    # "123456789" is the standard CRC-32/ISO-HDLC (zlib) check value input;
+    # the expected CRC32 is the well-known catalogue check value 0xCBF43926.
+    crc32_hex, _ = core.checksums(b"123456789")
+    assert crc32_hex == "cbf43926"
+
+
+def test_checksums_format_and_determinism():
+    data = bytes(range(256))
+    crc32_hex, sha256_hex = core.checksums(data)
+    assert len(crc32_hex) == 8
+    assert len(sha256_hex) == 64
+    assert crc32_hex == crc32_hex.lower()
+    assert sha256_hex == sha256_hex.lower()
+    assert core.checksums(data) == (crc32_hex, sha256_hex)
