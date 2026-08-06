@@ -57,7 +57,10 @@ def checksums(data: bytes, *, third: str = "sha256") -> tuple[str, str, str]:
     if third == "sha256":
         third_hex = hashlib.sha256(data).hexdigest()
     elif third == "md5":
-        third_hex = hashlib.md5(data).hexdigest()
+        third_hex = hashlib.md5(data, usedforsecurity=False).hexdigest()
     else:
-        raise ValueError(f"unsupported third algorithm: {third!r}")
+        raise ValueError(
+            f"unsupported third algorithm: {third!r} "
+            "(expected 'sha256' or 'md5')"
+        )
     return crc16_hex, crc32_hex, third_hex

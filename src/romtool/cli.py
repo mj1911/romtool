@@ -164,6 +164,8 @@ def cmd_split(args: argparse.Namespace) -> int:
     n = args.n if args.n is not None else len(args.outputs)
 
     data = _read_file(args.input)
+    # Printed before truncation: this checksum is of the full on-disk
+    # file, not the truncated data used below.
     _print_input_checksum_line(args.input, data)
     remainder = len(data) % n
     if remainder != 0:

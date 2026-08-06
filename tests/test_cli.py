@@ -142,6 +142,8 @@ def test_cmd_combine_writes_interleaved_output_and_prints_checksums(
     # Inputs are checksummed before the output is written.
     assert captured.out.index(low_line) < captured.out.index(out_line)
     assert captured.out.index(high_line) < captured.out.index(out_line)
+    # Inputs are checksummed in the order given on the command line.
+    assert captured.out.index(low_line) < captured.out.index(high_line)
 
 
 def test_cmd_combine_size_mismatch_without_pad_byte_raises(tmp_path):
@@ -229,6 +231,32 @@ def test_cmd_combine_missing_input_file_raises(tmp_path):
 
     with pytest.raises(RomToolError):
         cmd_combine(args)
+
+
+def test_cmd_combine_prints_earlier_input_checksums_before_later_read_failure(
+    tmp_path, capsys
+):
+    low = tmp_path / "low.bin"
+    missing = tmp_path / "missing.bin"
+    out = tmp_path / "out.bin"
+    low.write_bytes(b"\x01\x02\x03")
+
+    parser = build_parser()
+    args = parser.parse_args(
+        ["combine", str(low), str(missing), "-o", str(out)]
+    )
+
+    with pytest.raises(RomToolError):
+        cmd_combine(args)
+
+    captured = capsys.readouterr()
+    low_crc16, low_crc32, low_md5 = core.checksums(
+        low.read_bytes(), third="md5"
+    )
+    assert (
+        f"{low}: crc16={low_crc16} crc32={low_crc32} md5={low_md5}"
+        in captured.out
+    )
 
 
 def test_cmd_split_with_outputs_writes_deinterleaved_files_and_checksums(

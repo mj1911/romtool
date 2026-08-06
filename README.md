@@ -31,6 +31,10 @@ should run on Windows, Linux, and Mac.
 - Every output file gets its CRC16, CRC32, and SHA-256 checksums printed
   after it's written, so you can verify results or compare against
   known-good dumps.
+- Every input file gets its CRC16, CRC32, and MD5 checksums printed as
+  it's read — before any size/divisibility validation — so you can
+  record the identity of your source dumps even if the command then
+  fails.
 - `combine` and `split` are exact inverses of each other (given
   same-sized inputs and no truncation), so round-tripping a set of files
   through both reproduces the originals byte-for-byte.  This is how the test
@@ -95,6 +99,11 @@ remainder is dropped with a warning on stderr):
     --allow-truncate  (split) allows the input file's size to not be evenly
                       divisible by N, dropping the trailing bytes that don't
                       fill a complete row.
+
+Each input file has its CRC16, CRC32, and MD5 checksums reported as it's
+read, before `romtool` does anything else with it, e.g.:
+
+    LOW.bin: crc16=1234 crc32=abcdef01 md5=25f9e794323b453885f5181f1b624d0b
 
 Each successfully written output file has its CRC16, CRC32, and SHA-256
 checksums reported, e.g.:
