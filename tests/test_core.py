@@ -92,6 +92,36 @@ def test_checksums_format_and_determinism():
     assert core.checksums(data) == (crc16_hex, crc32_hex, sha256_hex)
 
 
+def test_checksums_md5_known_check_value():
+    # "123456789" MD5 catalogue check value, independently verified
+    # against hashlib.md5(b"123456789").hexdigest().
+    crc16_hex, crc32_hex, md5_hex = core.checksums(
+        b"123456789", third="md5"
+    )
+    assert crc16_hex == "29b1"
+    assert crc32_hex == "cbf43926"
+    assert md5_hex == "25f9e794323b453885f5181f1b624d0b"
+
+
+def test_checksums_md5_empty():
+    assert core.checksums(b"", third="md5")[2] == (
+        "d41d8cd98f00b204e9800998ecf8427e"
+    )
+
+
+def test_checksums_default_third_is_sha256():
+    # Omitting `third` still defaults to sha256 — unchanged from before
+    # this function was generalized.
+    assert core.checksums(b"123456789") == core.checksums(
+        b"123456789", third="sha256"
+    )
+
+
+def test_checksums_unsupported_third_raises():
+    with pytest.raises(ValueError):
+        core.checksums(b"data", third="bogus")
+
+
 def test_crc16_ccitt_false_empty():
     # CRC-16/CCITT-FALSE has init=0xFFFF, no input/output reflection, and
     # no final XOR, so an empty input leaves the CRC at its init value.
