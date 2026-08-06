@@ -120,8 +120,11 @@ def test_cmd_combine_writes_interleaved_output_and_prints_checksums(
     assert out.read_bytes() == b"\x01\xAA\x02\xBB\x03\xCC"
 
     captured = capsys.readouterr()
-    crc32_hex, sha256_hex = core.checksums(out.read_bytes())
-    assert f"{out}: crc32={crc32_hex} sha256={sha256_hex}" in captured.out
+    crc16_hex, crc32_hex, sha256_hex = core.checksums(out.read_bytes())
+    assert (
+        f"{out}: crc16={crc16_hex} crc32={crc32_hex} sha256={sha256_hex}"
+        in captured.out
+    )
 
 
 def test_cmd_combine_size_mismatch_without_pad_byte_raises(tmp_path):
@@ -195,10 +198,18 @@ def test_cmd_split_with_outputs_writes_deinterleaved_files_and_checksums(
     assert high_out.read_bytes() == b"\xAA\xBB\xCC"
 
     captured = capsys.readouterr()
-    low_crc32, low_sha256 = core.checksums(low_out.read_bytes())
-    high_crc32, high_sha256 = core.checksums(high_out.read_bytes())
-    assert f"{low_out}: crc32={low_crc32} sha256={low_sha256}" in captured.out
-    assert f"{high_out}: crc32={high_crc32} sha256={high_sha256}" in captured.out
+    low_crc16, low_crc32, low_sha256 = core.checksums(low_out.read_bytes())
+    high_crc16, high_crc32, high_sha256 = core.checksums(
+        high_out.read_bytes()
+    )
+    assert (
+        f"{low_out}: crc16={low_crc16} crc32={low_crc32} sha256={low_sha256}"
+        in captured.out
+    )
+    assert (
+        f"{high_out}: crc16={high_crc16} crc32={high_crc32} "
+        f"sha256={high_sha256}" in captured.out
+    )
 
 
 def test_cmd_split_with_n_auto_names_outputs(tmp_path, capsys):
@@ -216,10 +227,20 @@ def test_cmd_split_with_n_auto_names_outputs(tmp_path, capsys):
     assert part1.read_bytes() == b"\xAA\xBB\xCC"
 
     captured = capsys.readouterr()
-    part0_crc32, part0_sha256 = core.checksums(part0.read_bytes())
-    part1_crc32, part1_sha256 = core.checksums(part1.read_bytes())
-    assert f"{part0}: crc32={part0_crc32} sha256={part0_sha256}" in captured.out
-    assert f"{part1}: crc32={part1_crc32} sha256={part1_sha256}" in captured.out
+    part0_crc16, part0_crc32, part0_sha256 = core.checksums(
+        part0.read_bytes()
+    )
+    part1_crc16, part1_crc32, part1_sha256 = core.checksums(
+        part1.read_bytes()
+    )
+    assert (
+        f"{part0}: crc16={part0_crc16} crc32={part0_crc32} "
+        f"sha256={part0_sha256}" in captured.out
+    )
+    assert (
+        f"{part1}: crc16={part1_crc16} crc32={part1_crc32} "
+        f"sha256={part1_sha256}" in captured.out
+    )
 
 
 def test_cmd_split_with_n_auto_names_always_use_bin_suffix(tmp_path):
