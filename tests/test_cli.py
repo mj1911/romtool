@@ -195,11 +195,13 @@ def test_cmd_split_with_outputs_writes_deinterleaved_files_and_checksums(
     assert high_out.read_bytes() == b"\xAA\xBB\xCC"
 
     captured = capsys.readouterr()
-    assert str(low_out) in captured.out
-    assert str(high_out) in captured.out
+    low_crc32, low_sha256 = core.checksums(low_out.read_bytes())
+    high_crc32, high_sha256 = core.checksums(high_out.read_bytes())
+    assert f"{low_out}: crc32={low_crc32} sha256={low_sha256}" in captured.out
+    assert f"{high_out}: crc32={high_crc32} sha256={high_sha256}" in captured.out
 
 
-def test_cmd_split_with_n_auto_names_outputs(tmp_path):
+def test_cmd_split_with_n_auto_names_outputs(tmp_path, capsys):
     combined = tmp_path / "combined.bin"
     combined.write_bytes(b"\x01\xAA\x02\xBB\x03\xCC")
 
@@ -212,6 +214,12 @@ def test_cmd_split_with_n_auto_names_outputs(tmp_path):
     part1 = tmp_path / "combined.part1.bin"
     assert part0.read_bytes() == b"\x01\x02\x03"
     assert part1.read_bytes() == b"\xAA\xBB\xCC"
+
+    captured = capsys.readouterr()
+    part0_crc32, part0_sha256 = core.checksums(part0.read_bytes())
+    part1_crc32, part1_sha256 = core.checksums(part1.read_bytes())
+    assert f"{part0}: crc32={part0_crc32} sha256={part0_sha256}" in captured.out
+    assert f"{part1}: crc32={part1_crc32} sha256={part1_sha256}" in captured.out
 
 
 def test_cmd_split_with_n_auto_names_always_use_bin_suffix(tmp_path):
