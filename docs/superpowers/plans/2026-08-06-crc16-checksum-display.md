@@ -1,6 +1,6 @@
 # CRC16 Checksum Display Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Print a CRC-16/CCITT-FALSE checksum alongside the existing CRC32 and SHA-256 on every file `romtool` writes.
 
@@ -26,7 +26,7 @@
 **Interfaces:**
 - Produces: `crc16_ccitt_false(data: bytes) -> int`, used by Task 2's `checksums()`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/test_core.py`:
 
@@ -44,12 +44,12 @@ def test_crc16_ccitt_false_known_check_value():
     assert core.crc16_ccitt_false(b"123456789") == 0x29B1
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `python -m pytest tests/test_core.py -k crc16_ccitt_false -v`
 Expected: FAIL with `AttributeError: module 'romtool.core' has no attribute 'crc16_ccitt_false'`
 
-- [ ] **Step 3: Implement `crc16_ccitt_false`**
+- [x] **Step 3: Implement `crc16_ccitt_false`**
 
 Add to `src/romtool/core.py` (near the top, after the imports):
 
@@ -82,12 +82,12 @@ def crc16_ccitt_false(data: bytes) -> int:
     return crc
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `python -m pytest tests/test_core.py -k crc16_ccitt_false -v`
 Expected: PASS (2 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/romtool/core.py tests/test_core.py
@@ -106,7 +106,7 @@ git commit -m "Add CRC-16/CCITT-FALSE checksum function to core"
 - Consumes: `crc16_ccitt_false(data: bytes) -> int` from Task 1.
 - Produces: `checksums(data: bytes) -> tuple[str, str, str]` returning `(crc16_hex, crc32_hex, sha256_hex)`, used by Task 3's `_print_checksum_line`.
 
-- [ ] **Step 1: Update the failing tests**
+- [x] **Step 1: Update the failing tests**
 
 In `tests/test_core.py`, replace the three existing `checksums`-related tests with:
 
@@ -146,12 +146,12 @@ def test_checksums_format_and_determinism():
     assert core.checksums(data) == (crc16_hex, crc32_hex, sha256_hex)
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `python -m pytest tests/test_core.py -k checksums -v`
 Expected: FAIL — `checksums` still returns a 2-tuple, so the 3-way unpacking raises `ValueError: not enough values to unpack`.
 
-- [ ] **Step 3: Update `checksums()`**
+- [x] **Step 3: Update `checksums()`**
 
 Replace the existing `checksums` function in `src/romtool/core.py`:
 
@@ -164,12 +164,12 @@ def checksums(data: bytes) -> tuple[str, str, str]:
     return crc16_hex, crc32_hex, sha256_hex
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `python -m pytest tests/test_core.py -v`
 Expected: PASS (all tests in the file, including Task 1's and the updated checksum tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/romtool/core.py tests/test_core.py
@@ -187,7 +187,7 @@ git commit -m "Extend checksums() to include CRC16"
 **Interfaces:**
 - Consumes: `checksums(data: bytes) -> tuple[str, str, str]` from Task 2 (returns `(crc16_hex, crc32_hex, sha256_hex)`).
 
-- [ ] **Step 1: Update the failing tests**
+- [x] **Step 1: Update the failing tests**
 
 In `tests/test_cli.py`, update `test_cmd_combine_writes_interleaved_output_and_prints_checksums` (currently lines 104-124):
 
@@ -288,12 +288,12 @@ def test_cmd_split_with_n_auto_names_outputs(tmp_path, capsys):
     )
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `python -m pytest tests/test_cli.py -v`
 Expected: FAIL on the three updated tests — `_print_checksum_line` still prints only `crc32=...sha256=...`, and/or the 3-way unpack of `core.checksums(...)` now works (Task 2 already updated it) but the printed line doesn't yet contain `crc16=`.
 
-- [ ] **Step 3: Update `_print_checksum_line`**
+- [x] **Step 3: Update `_print_checksum_line`**
 
 Replace in `src/romtool/cli.py`:
 
@@ -303,17 +303,17 @@ def _print_checksum_line(path: Path, data: bytes) -> None:
     print(f"{path}: crc16={crc16_hex} crc32={crc32_hex} sha256={sha256_hex}")
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `python -m pytest tests/test_cli.py -v`
 Expected: PASS (all tests)
 
-- [ ] **Step 5: Run the full test suite**
+- [x] **Step 5: Run the full test suite**
 
 Run: `python -m pytest -v`
 Expected: PASS (all tests in `tests/test_core.py` and `tests/test_cli.py`)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/romtool/cli.py tests/test_cli.py
@@ -336,7 +336,7 @@ git commit -m "Print CRC16 alongside CRC32/SHA-256 in CLI output"
 
 **Interfaces:** None (documentation only).
 
-- [ ] **Step 1: Update the checksum sentence**
+- [x] **Step 1: Update the checksum sentence**
 
 In `README.md`, find (near the end, right before the `## Test` section):
 
@@ -352,12 +352,12 @@ Each successfully written output file gets a line printed with its CRC16,
 CRC32, and SHA-256 checksums.
 ```
 
-- [ ] **Step 2: Verify no other stale references remain**
+- [x] **Step 2: Verify no other stale references remain**
 
 Run: `grep -n "crc32\|checksum" README.md`
 Expected: Every checksum-related line mentions CRC16 alongside CRC32/SHA-256; no line shows the old two-field-only format.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add README.md
@@ -368,5 +368,5 @@ git commit -m "Document CRC16 in checksum output"
 
 ## Final Verification
 
-- [ ] Run `python -m pytest -v` from the repo root — all tests pass.
-- [ ] Run `PYTHONPATH=src python3 -m romtool combine <any two equal-length files> -o /tmp/out.bin` and confirm the printed line has the form `crc16=<4 hex> crc32=<8 hex> sha256=<64 hex>`.
+- [x] Run `python -m pytest -v` from the repo root — all tests pass.
+- [x] Run `PYTHONPATH=src python3 -m romtool combine <any two equal-length files> -o /tmp/out.bin` and confirm the printed line has the form `crc16=<4 hex> crc32=<8 hex> sha256=<64 hex>`.

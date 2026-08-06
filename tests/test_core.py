@@ -75,6 +75,11 @@ def test_checksums_crc16_known_check_value():
     assert crc16_hex == "29b1"
 
 
+def test_checksums_crc16_is_zero_padded():
+    # crc16 of b"\x00\x00\x0c" is 0x0d10 — exercises the leading-zero pad.
+    assert core.checksums(b"\x00\x00\x0c")[0] == "0d10"
+
+
 def test_checksums_format_and_determinism():
     data = bytes(range(256))
     crc16_hex, crc32_hex, sha256_hex = core.checksums(data)
