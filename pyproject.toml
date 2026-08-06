@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "romtool"
+version = "0.1.0"
+description = "Interleave and de-interleave binary ROM/EEPROM images"
+readme = "README.md"
+requires-python = ">=3.9"
+
+[project.scripts]
+romtool = "romtool.cli:main"
+
+[project.optional-dependencies]
+test = ["pytest>=7.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
