@@ -324,53 +324,40 @@ git commit -m "Print CRC16 alongside CRC32/SHA-256 in CLI output"
 
 ### Task 4: Update README documentation
 
+> **Correction (post-brainstorm):** this section originally quoted an
+> expanded ~118-line README that turned out to exist only as an
+> *uncommitted* edit on the `main` branch's working directory — never
+> committed to history. The branch this plan executes on was created from
+> the last commit, which has the original short (25-line) `README.md`.
+> Steps below target that actual committed file.
+
 **Files:**
-- Modify: `README.md:31,99,102`
+- Modify: `README.md` (the short, ~25-line version currently committed)
 
 **Interfaces:** None (documentation only).
 
-- [ ] **Step 1: Update the checksum bullet point**
+- [ ] **Step 1: Update the checksum sentence**
 
-In `README.md`, find the line (around line 31):
-
-```
-- Every output file gets its CRC32 and SHA-256 checksum printed after
-```
-
-Replace with:
+In `README.md`, find (near the end, right before the `## Test` section):
 
 ```
-- Every output file gets its CRC16, CRC32, and SHA-256 checksums printed
-```
-
-(keep the following line of that bullet — "it's written, so you can verify results..." — unchanged, just re-flow the wrapping if needed so the bullet still reads naturally as one point).
-
-- [ ] **Step 2: Update the "Command Options" section checksum line and example**
-
-Find (around line 99-102):
-
-```
-Each successfully written output file has its CRC32 and SHA-256 checksum
-reported, e.g.:
-
-    combined.bin: crc32=1a2b3c4d sha256=9f86d0818...
+Each successfully written output file gets a line printed with its CRC32
+and SHA-256 checksums.
 ```
 
 Replace with:
 
 ```
-Each successfully written output file has its CRC16, CRC32, and SHA-256
-checksums reported, e.g.:
-
-    combined.bin: crc16=29b1 crc32=1a2b3c4d sha256=9f86d0818...
+Each successfully written output file gets a line printed with its CRC16,
+CRC32, and SHA-256 checksums.
 ```
 
-- [ ] **Step 3: Verify no other stale references remain**
+- [ ] **Step 2: Verify no other stale references remain**
 
 Run: `grep -n "crc32\|checksum" README.md`
 Expected: Every checksum-related line mentions CRC16 alongside CRC32/SHA-256; no line shows the old two-field-only format.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add README.md
