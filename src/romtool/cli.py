@@ -183,13 +183,11 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "combine":
             return cmd_combine(args)
-        elif args.command == "split":
+        else:
             return cmd_split(args)
     except RomToolError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
-
-    return 1
 
 
 if __name__ == "__main__":
