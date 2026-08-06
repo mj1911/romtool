@@ -174,3 +174,23 @@ def cmd_split(args: argparse.Namespace) -> int:
         _write_output(path, part)
         _print_checksum_line(path, part)
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    try:
+        if args.command == "combine":
+            return cmd_combine(args)
+        elif args.command == "split":
+            return cmd_split(args)
+    except RomToolError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

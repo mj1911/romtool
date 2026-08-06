@@ -268,3 +268,61 @@ def test_cmd_split_allow_truncate_drops_remainder_and_warns(
 
     captured = capsys.readouterr()
     assert "truncat" in captured.err.lower()
+
+
+from romtool.cli import main
+
+
+def test_main_combine_end_to_end(tmp_path, capsys):
+    low = tmp_path / "low.bin"
+    high = tmp_path / "high.bin"
+    out = tmp_path / "out.bin"
+    low.write_bytes(b"\x01\x02")
+    high.write_bytes(b"\xAA\xBB")
+
+    exit_code = main(
+        ["combine", str(low), str(high), "-o", str(out)]
+    )
+
+    assert exit_code == 0
+    assert out.read_bytes() == b"\x01\xAA\x02\xBB"
+
+
+def test_main_split_end_to_end(tmp_path):
+    combined = tmp_path / "combined.bin"
+    combined.write_bytes(b"\x01\xAA\x02\xBB")
+
+    exit_code = main(["split", str(combined), "-n", "2"])
+
+    assert exit_code == 0
+    assert (tmp_path / "combined.part0.bin").read_bytes() == b"\x01\x02"
+    assert (tmp_path / "combined.part1.bin").read_bytes() == b"\xAA\xBB"
+
+
+def test_main_reports_romtool_error_on_stderr_with_exit_1(tmp_path, capsys):
+    missing = tmp_path / "missing.bin"
+    high = tmp_path / "high.bin"
+    high.write_bytes(b"\xAA")
+    out = tmp_path / "out.bin"
+
+    exit_code = main(
+        ["combine", str(missing), str(high), "-o", str(out)]
+    )
+
+    assert exit_code == 1
+    captured = capsys.readouterr()
+    assert "cannot read" in captured.err
+
+
+def test_main_combine_roundtrips_with_split(tmp_path):
+    low = tmp_path / "low.bin"
+    high = tmp_path / "high.bin"
+    combined = tmp_path / "combined.bin"
+    low.write_bytes(bytes(range(0, 50)))
+    high.write_bytes(bytes(range(50, 100)))
+
+    assert main(["combine", str(low), str(high), "-o", str(combined)]) == 0
+    assert main(["split", str(combined), "-n", "2"]) == 0
+
+    assert (tmp_path / "combined.part0.bin").read_bytes() == low.read_bytes()
+    assert (tmp_path / "combined.part1.bin").read_bytes() == high.read_bytes()
