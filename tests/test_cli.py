@@ -120,11 +120,28 @@ def test_cmd_combine_writes_interleaved_output_and_prints_checksums(
     assert out.read_bytes() == b"\x01\xAA\x02\xBB\x03\xCC"
 
     captured = capsys.readouterr()
-    crc16_hex, crc32_hex, sha256_hex = core.checksums(out.read_bytes())
-    assert (
-        f"{out}: crc16={crc16_hex} crc32={crc32_hex} sha256={sha256_hex}"
-        in captured.out
+    low_crc16, low_crc32, low_md5 = core.checksums(
+        low.read_bytes(), third="md5"
     )
+    high_crc16, high_crc32, high_md5 = core.checksums(
+        high.read_bytes(), third="md5"
+    )
+    crc16_hex, crc32_hex, sha256_hex = core.checksums(out.read_bytes())
+
+    low_line = f"{low}: crc16={low_crc16} crc32={low_crc32} md5={low_md5}"
+    high_line = (
+        f"{high}: crc16={high_crc16} crc32={high_crc32} md5={high_md5}"
+    )
+    out_line = (
+        f"{out}: crc16={crc16_hex} crc32={crc32_hex} sha256={sha256_hex}"
+    )
+
+    assert low_line in captured.out
+    assert high_line in captured.out
+    assert out_line in captured.out
+    # Inputs are checksummed before the output is written.
+    assert captured.out.index(low_line) < captured.out.index(out_line)
+    assert captured.out.index(high_line) < captured.out.index(out_line)
 
 
 def test_cmd_combine_size_mismatch_without_pad_byte_raises(tmp_path):
@@ -142,6 +159,41 @@ def test_cmd_combine_size_mismatch_without_pad_byte_raises(tmp_path):
     with pytest.raises(RomToolError):
         cmd_combine(args)
     assert not out.exists()
+
+
+def test_cmd_combine_size_mismatch_still_prints_input_checksums(
+    tmp_path, capsys
+):
+    low = tmp_path / "low.bin"
+    high = tmp_path / "high.bin"
+    out = tmp_path / "out.bin"
+    low.write_bytes(b"\x01\x02\x03")
+    high.write_bytes(b"\xAA\xBB")
+
+    parser = build_parser()
+    args = parser.parse_args(
+        ["combine", str(low), str(high), "-o", str(out)]
+    )
+
+    with pytest.raises(RomToolError):
+        cmd_combine(args)
+    assert not out.exists()
+
+    captured = capsys.readouterr()
+    low_crc16, low_crc32, low_md5 = core.checksums(
+        low.read_bytes(), third="md5"
+    )
+    high_crc16, high_crc32, high_md5 = core.checksums(
+        high.read_bytes(), third="md5"
+    )
+    assert (
+        f"{low}: crc16={low_crc16} crc32={low_crc32} md5={low_md5}"
+        in captured.out
+    )
+    assert (
+        f"{high}: crc16={high_crc16} crc32={high_crc32} md5={high_md5}"
+        in captured.out
+    )
 
 
 def test_cmd_combine_pads_shorter_inputs(tmp_path):
@@ -198,18 +250,30 @@ def test_cmd_split_with_outputs_writes_deinterleaved_files_and_checksums(
     assert high_out.read_bytes() == b"\xAA\xBB\xCC"
 
     captured = capsys.readouterr()
+    in_crc16, in_crc32, in_md5 = core.checksums(
+        combined.read_bytes(), third="md5"
+    )
     low_crc16, low_crc32, low_sha256 = core.checksums(low_out.read_bytes())
     high_crc16, high_crc32, high_sha256 = core.checksums(
         high_out.read_bytes()
     )
-    assert (
-        f"{low_out}: crc16={low_crc16} crc32={low_crc32} sha256={low_sha256}"
-        in captured.out
+    input_line = (
+        f"{combined}: crc16={in_crc16} crc32={in_crc32} md5={in_md5}"
     )
-    assert (
+    low_line = (
+        f"{low_out}: crc16={low_crc16} crc32={low_crc32} "
+        f"sha256={low_sha256}"
+    )
+    high_line = (
         f"{high_out}: crc16={high_crc16} crc32={high_crc32} "
-        f"sha256={high_sha256}" in captured.out
+        f"sha256={high_sha256}"
     )
+    assert input_line in captured.out
+    assert low_line in captured.out
+    assert high_line in captured.out
+    # The input is checksummed before either output.
+    assert captured.out.index(input_line) < captured.out.index(low_line)
+    assert captured.out.index(input_line) < captured.out.index(high_line)
 
 
 def test_cmd_split_with_n_auto_names_outputs(tmp_path, capsys):
@@ -267,6 +331,28 @@ def test_cmd_split_non_divisible_without_allow_truncate_raises(tmp_path):
 
     with pytest.raises(RomToolError):
         cmd_split(args)
+
+
+def test_cmd_split_non_divisible_still_prints_input_checksum(
+    tmp_path, capsys
+):
+    combined = tmp_path / "combined.bin"
+    combined.write_bytes(b"\x01\xAA\x02")  # length 3, not divisible by 2
+
+    parser = build_parser()
+    args = parser.parse_args(["split", str(combined), "-n", "2"])
+
+    with pytest.raises(RomToolError):
+        cmd_split(args)
+
+    captured = capsys.readouterr()
+    crc16_hex, crc32_hex, md5_hex = core.checksums(
+        combined.read_bytes(), third="md5"
+    )
+    assert (
+        f"{combined}: crc16={crc16_hex} crc32={crc32_hex} md5={md5_hex}"
+        in captured.out
+    )
 
 
 def test_cmd_split_allow_truncate_drops_remainder_and_warns(
