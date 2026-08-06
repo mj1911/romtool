@@ -7,10 +7,10 @@
 
 A cross-platform (Linux/Windows/Mac) command-line tool to combine (interleave)
 N byte-aligned binary ROM/EEPROM images into a single file, and to split
-(de-interleave) a single file back into N byte-aligned images. Covers the
-common case of separate High/Low byte ROM images that need to be merged for
-programming or analysis, and generalizes to N-way interleaving (e.g. 4 ROMs
-on a 32-bit bus) - something perhaps rare but invaluable.
+(de-interleave) a single file back into N byte-aligned images. Only works on
+bytes. Covers the common case of separate High/Low byte ROM images that need to
+be merged for programming or analysis, and generalizes to N-way interleaving 
+(e.g. 4 ROMs on a 32-bit bus) - something perhaps rare but invaluable.
 
 ## Interface
 
@@ -25,7 +25,7 @@ romtool split INPUT.FILE (-n N | -o OUT0 OUT1 [OUT2 ...]) [--allow-truncate]
 After successfully writing output file(s), the tool prints one line per
 output file to stdout with both a CRC32 and a SHA-256 checksum, e.g.:
 
-```
+```gf
 combined.bin: crc32=3a2f9c11 sha256=9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
 ```
 
@@ -57,7 +57,7 @@ integrity check. Both come from the standard library (`zlib.crc32`,
     count of names given.
 - Input file length must be evenly divisible by N, **unless**
   `--allow-truncate` is given, in which case the trailing partial group of
-  bytes is dropped. In that case, a warning is printed to stderr, and the 
+  bytes is dropped. In that case, a warning is printed to stderr, and the
   operation proceeds with the truncated length.
 - Without `--allow-truncate`, a non-divisible length is a hard error (exit 1)
   naming the file size and N.
@@ -138,7 +138,7 @@ called by the CLI layer once per output file, after it has been written.
 
 ## Packaging
 
-```
+```gf
 romtool/
   pyproject.toml
   src/romtool/
