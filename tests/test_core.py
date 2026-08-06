@@ -75,3 +75,16 @@ def test_checksums_format_and_determinism():
     assert crc32_hex == crc32_hex.lower()
     assert sha256_hex == sha256_hex.lower()
     assert core.checksums(data) == (crc32_hex, sha256_hex)
+
+
+def test_crc16_ccitt_false_empty():
+    # CRC-16/CCITT-FALSE has init=0xFFFF, no input/output reflection, and
+    # no final XOR, so an empty input leaves the CRC at its init value.
+    assert core.crc16_ccitt_false(b"") == 0xFFFF
+
+
+def test_crc16_ccitt_false_known_check_value():
+    # "123456789" is the standard CRC catalogue check-value input; the
+    # expected result is the well-known CRC-16/CCITT-FALSE check value
+    # 0x29B1.
+    assert core.crc16_ccitt_false(b"123456789") == 0x29B1

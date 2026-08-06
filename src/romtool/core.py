@@ -2,6 +2,34 @@ import hashlib
 import zlib
 
 
+_CRC16_CCITT_FALSE_POLY = 0x1021
+
+
+def _build_crc16_table(poly: int) -> list[int]:
+    table = []
+    for byte in range(256):
+        crc = byte << 8
+        for _ in range(8):
+            if crc & 0x8000:
+                crc = ((crc << 1) ^ poly) & 0xFFFF
+            else:
+                crc = (crc << 1) & 0xFFFF
+        table.append(crc)
+    return table
+
+
+_CRC16_TABLE = _build_crc16_table(_CRC16_CCITT_FALSE_POLY)
+
+
+def crc16_ccitt_false(data: bytes) -> int:
+    """Returns the CRC-16/CCITT-FALSE checksum of data as an int
+    (poly=0x1021, init=0xFFFF, no reflection, no final XOR)."""
+    crc = 0xFFFF
+    for byte in data:
+        crc = ((crc << 8) & 0xFFFF) ^ _CRC16_TABLE[((crc >> 8) ^ byte) & 0xFF]
+    return crc
+
+
 def interleave(streams: list[bytes]) -> bytes:
     """Combine equal-length byte streams by interleaving one byte from
     each in turn. All streams must already be the same length — padding
