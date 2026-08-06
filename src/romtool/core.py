@@ -49,8 +49,9 @@ def deinterleave(data: bytes, n: int) -> list[bytes]:
     return [data[j::n] for j in range(n)]
 
 
-def checksums(data: bytes) -> tuple[str, str]:
-    """Returns (crc32_hex, sha256_hex) for the given bytes."""
+def checksums(data: bytes) -> tuple[str, str, str]:
+    """Returns (crc16_hex, crc32_hex, sha256_hex) for the given bytes."""
+    crc16_hex = f"{crc16_ccitt_false(data):04x}"
     crc32_hex = f"{zlib.crc32(data):08x}"
     sha256_hex = hashlib.sha256(data).hexdigest()
-    return crc32_hex, sha256_hex
+    return crc16_hex, crc32_hex, sha256_hex
