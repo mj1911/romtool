@@ -41,7 +41,8 @@ should run on Windows, Linux, and Mac.
 
 ## Dev or Arch Linux Install
 
-    python -m venv .venv && . .venv/bin/activate && pip install -e ".[test]"
+    python -m venv .venv    (once, then)
+    . .venv/bin/activate && pip install -e ".[test]"
 
 ## Usage
 
@@ -53,8 +54,8 @@ Takes 2 or more input files and interleaves them byte-by-byte into
 `outputfile`. All inputs must be the same size unless `--pad-byte` is
 given.  Example:
 
-    romtool combine LOW.bin HIGH.bin -o Combined.bin --pad-byte 0xFF
     romtool combine 01.bin 02.bin 03.bin 04.bin -o big.bin
+    romtool combine LOW.bin HIGH.bin -o Combined.bin --pad-byte 0xFF
 
 If input sizes differ and `--pad-byte` is not given, `romtool` refuses to
 guess and reports the mismatched sizes:
@@ -98,12 +99,12 @@ remainder is dropped with a warning on stderr):
 Each read input file has its CRC16, CRC32, and MD5 checksums reported before
 `romtool` does anything else with it, e.g.:
 
-    LOW.bin: crc16=9A12 crc32=02BC051A md5=25f9e79432...
+    LOW.bin: crc16=9A12 crc32=02BC051A md5=25F9E79432...
 
 Each successfully written output file also has its CRC16, CRC32, and MD5
 checksums reported, e.g.:
 
-    combined.bin: crc16=29B1 crc32=1A2B3C4D md5=9f86d0818...
+    combined.bin: crc16=29B1 crc32=1A2B3C4D md5=9F86D0818...
 
 ## Requirements
 
@@ -117,6 +118,6 @@ Python 3.9+. No third-party runtime dependencies.
 
 Because I wanted a tool to combine low and high files to view the full data.
 
-Looking on the web, found such a tool in a rather sketchy forum.  Downloaded it, but wasn't going to run anything without examining it.  Found the Windows file packed with UPX which was a little suspicious.  Tried to decompress it, but the header was scrubbed - even more suspicious.  Should have left it at that and ran away... but decided to have Claude try to make a static-analysis tool to patch such executables so they could be decompressed (by UPX natively.)  I explicitly told it that this must be static-analysis only, and to never "dynamically get an import table." Furthermore, I told it nothing of this particular file - just of scrubbed UPX executables in general.  Well Claude or one of its sub-agents somehow found this file, and ran it (I'm guessing to verify the legitimately-reconstructed imports), which then infected a whole workplace with some kind of worm!
+Looking on the web, such tools are a dime a dozen, but are all sketchy.  Found such a tool in a rather obscure forum.  Downloaded it, but wasn't going to run anything without examining it.  Found the file packed with UPX, which was a little suspicious.  Tried to decompress it, but the header was scrubbed - even more suspicious.  Should have left it at that and walked away... but decided to have Claude try to make a static-analysis tool to patch such executables (reconstruct the scrubbed headers) so they could be decompressed by UPX natively.  I explicitly told it that this must be static-analysis only, and to never "dynamically get an import table." Furthermore, I told it nothing of this particular file - just of scrubbed UPX executables in general and even gave it an example file.  And it totally worked!  Patched the files and decompressed successfully.  However, Claude or one of its sub-agents somehow found this particular file and ran it (I'm guessing to verify the dynamic imports), which then infected a whole workplace with some kind of nasty worm!
 
-Ironically, in the next day's Claude release notes, see lots of fixes for similar rogue behavior.  Let this be a warning whenever using Claude - a sandbox is not just a good idea; it could totally save your bacon.
+Ironically, in the next day's Claude release notes, saw lots of fixes for similar rogue behavior.  Let this be a warning whenever using AI agents: a sandbox is not just a good idea; it will totally save your bacon.
