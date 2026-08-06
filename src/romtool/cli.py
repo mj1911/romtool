@@ -1,4 +1,5 @@
 import argparse
+import sys
 from pathlib import Path
 
 from romtool import core
@@ -133,4 +134,43 @@ def cmd_combine(args: argparse.Namespace) -> int:
     combined = core.interleave(datas)
     _write_output(args.output, combined)
     _print_checksum_line(args.output, combined)
+    return 0
+
+
+def _split_output_paths(args: argparse.Namespace, n: int) -> list[Path]:
+    if args.outputs is not None:
+        return list(args.outputs)
+    # Spec: auto-generated names are always "<stem>.partN.bin", regardless
+    # of the input file's own extension.
+    stem = args.input.stem
+    parent = args.input.parent
+    return [parent / f"{stem}.part{i}.bin" for i in range(n)]
+
+
+def cmd_split(args: argparse.Namespace) -> int:
+    # n is guaranteed >= 2 here: build_parser() validates -n via
+    # parse_split_n and -o via _MinLengthAction, both at parse time.
+    n = args.n if args.n is not None else len(args.outputs)
+
+    data = _read_file(args.input)
+    remainder = len(data) % n
+    if remainder != 0:
+        if not args.allow_truncate:
+            raise RomToolError(
+                f"{args.input} has size {len(data)}, not divisible by "
+                f"{n} ({remainder} trailing bytes); use --allow-truncate "
+                "to drop them, or fix N/the input"
+            )
+        print(
+            f"warning: truncating {remainder} trailing byte(s) from "
+            f"{args.input} to make its size divisible by {n}",
+            file=sys.stderr,
+        )
+        data = data[: len(data) - remainder]
+
+    outputs = _split_output_paths(args, n)
+    parts = core.deinterleave(data, n)
+    for path, part in zip(outputs, parts):
+        _write_output(path, part)
+        _print_checksum_line(path, part)
     return 0

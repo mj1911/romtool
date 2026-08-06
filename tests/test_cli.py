@@ -1,7 +1,7 @@
 import pytest
 
 from romtool import core
-from romtool.cli import build_parser, RomToolError, cmd_combine
+from romtool.cli import build_parser, RomToolError, cmd_combine, cmd_split
 
 
 def test_parser_combine_basic():
@@ -174,3 +174,89 @@ def test_cmd_combine_missing_input_file_raises(tmp_path):
 
     with pytest.raises(RomToolError):
         cmd_combine(args)
+
+
+def test_cmd_split_with_outputs_writes_deinterleaved_files_and_checksums(
+    tmp_path, capsys
+):
+    combined = tmp_path / "combined.bin"
+    combined.write_bytes(b"\x01\xAA\x02\xBB\x03\xCC")
+    low_out = tmp_path / "low.bin"
+    high_out = tmp_path / "high.bin"
+
+    parser = build_parser()
+    args = parser.parse_args(
+        ["split", str(combined), "-o", str(low_out), str(high_out)]
+    )
+    exit_code = cmd_split(args)
+
+    assert exit_code == 0
+    assert low_out.read_bytes() == b"\x01\x02\x03"
+    assert high_out.read_bytes() == b"\xAA\xBB\xCC"
+
+    captured = capsys.readouterr()
+    assert str(low_out) in captured.out
+    assert str(high_out) in captured.out
+
+
+def test_cmd_split_with_n_auto_names_outputs(tmp_path):
+    combined = tmp_path / "combined.bin"
+    combined.write_bytes(b"\x01\xAA\x02\xBB\x03\xCC")
+
+    parser = build_parser()
+    args = parser.parse_args(["split", str(combined), "-n", "2"])
+    exit_code = cmd_split(args)
+
+    assert exit_code == 0
+    part0 = tmp_path / "combined.part0.bin"
+    part1 = tmp_path / "combined.part1.bin"
+    assert part0.read_bytes() == b"\x01\x02\x03"
+    assert part1.read_bytes() == b"\xAA\xBB\xCC"
+
+
+def test_cmd_split_with_n_auto_names_always_use_bin_suffix(tmp_path):
+    # Spec: auto-generated names are always "<stem>.partN.bin", regardless
+    # of the input file's own extension.
+    combined = tmp_path / "combined.eeprom"
+    combined.write_bytes(b"\x01\xAA\x02\xBB")
+
+    parser = build_parser()
+    args = parser.parse_args(["split", str(combined), "-n", "2"])
+    exit_code = cmd_split(args)
+
+    assert exit_code == 0
+    assert (tmp_path / "combined.part0.bin").read_bytes() == b"\x01\x02"
+    assert (tmp_path / "combined.part1.bin").read_bytes() == b"\xAA\xBB"
+
+
+def test_cmd_split_non_divisible_without_allow_truncate_raises(tmp_path):
+    combined = tmp_path / "combined.bin"
+    combined.write_bytes(b"\x01\xAA\x02")  # length 3, not divisible by 2
+
+    parser = build_parser()
+    args = parser.parse_args(["split", str(combined), "-n", "2"])
+
+    with pytest.raises(RomToolError):
+        cmd_split(args)
+
+
+def test_cmd_split_allow_truncate_drops_remainder_and_warns(
+    tmp_path, capsys
+):
+    combined = tmp_path / "combined.bin"
+    combined.write_bytes(b"\x01\xAA\x02")  # length 3, not divisible by 2
+
+    parser = build_parser()
+    args = parser.parse_args(
+        ["split", str(combined), "-n", "2", "--allow-truncate"]
+    )
+    exit_code = cmd_split(args)
+
+    assert exit_code == 0
+    part0 = tmp_path / "combined.part0.bin"
+    part1 = tmp_path / "combined.part1.bin"
+    assert part0.read_bytes() == b"\x01"
+    assert part1.read_bytes() == b"\xAA"
+
+    captured = capsys.readouterr()
+    assert "truncat" in captured.err.lower()
