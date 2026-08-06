@@ -17,8 +17,8 @@ separate High/Low byte ROM dumps.
     romtool split combined.bin -o low.bin high.bin
     romtool split combined.bin -n 2 --allow-truncate
 
-Each successfully written output file gets a line printed with its CRC32
-and SHA-256 checksums.
+Each successfully written output file gets a line printed with its CRC16,
+CRC32, and SHA-256 checksums.
 
 ## Test
 
