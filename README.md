@@ -28,13 +28,8 @@ should run on Windows, Linux, and Mac.
 - Input size for `split` is normally required to be evenly divisible by
   N; `--allow-truncate` relaxes that by dropping trailing bytes that
   don't fill a complete row.
-- Every output file gets its CRC16, CRC32, and SHA-256 checksums printed
-  after it's written, so you can verify results or compare against
-  known-good dumps.
-- Every input file gets its CRC16, CRC32, and MD5 checksums printed as
-  it's read — before any size/divisibility validation — so you can
-  record the identity of your source dumps even if the command then
-  fails.
+- Every input and output file gets a CRC16, CRC32, and md5 checksum
+  printed, so you can verify results or compare against known-good dumps.
 - `combine` and `split` are exact inverses of each other (given
   same-sized inputs and no truncation), so round-tripping a set of files
   through both reproduces the originals byte-for-byte.  This is how the test
@@ -44,7 +39,7 @@ should run on Windows, Linux, and Mac.
 
     pip install -e ".[test]"
 
-## Dev or Arch Linux
+## Dev or Arch Linux Install
 
     python -m venv .venv && . .venv/bin/activate && pip install -e ".[test]"
 
@@ -58,7 +53,7 @@ Takes 2 or more input files and interleaves them byte-by-byte into
 `outputfile`. All inputs must be the same size unless `--pad-byte` is
 given.  Example:
 
-    romtool combine LOW.bin HIGH.bin -o combined.bin --pad-byte 0xFF
+    romtool combine LOW.bin HIGH.bin -o Combined.bin --pad-byte 0xFF
     romtool combine 01.bin 02.bin 03.bin 04.bin -o big.bin
 
 If input sizes differ and `--pad-byte` is not given, `romtool` refuses to
@@ -69,21 +64,21 @@ guess and reports the mismatched sizes:
 
 ### Split (de-interleave)
 
-    `romtool split inputfile [-n number] [-o out1 out2 outn] [--allow-truncate]`
+    `romtool split inputfile [-n number]|[-o out1 out2 outn] [--allow-truncate]`
 
 Takes one input file and de-interleaves it into N output files, where N
 is either given directly with `-n`, or inferred from the number of
 filenames passed to `-o`. Exactly one of `-n` or `-o` must be given.
 
-    romtool split combined.bin -o low.bin high.bin
-    romtool split combined.bin -n 4 --allow-truncate
+    romtool split Combined.bin -o LOW.bin HIGH.bin
+    romtool split Combined.bin -n 4 --allow-truncate
 
 If `-n` is used instead of `-o`, output files are auto-named
 `<input-stem>.part0.bin`, `<input-stem>.part1.bin`, etc., regardless of
 the input file's own extension:
 
-    romtool split combined.bin -n 2
-    # writes combined.part0.bin, combined.part1.bin
+    romtool split Combined.bin -n 2
+    # writes Combined.part0.bin, Combined.part1.bin
 
 If the input's size isn't evenly divisible by N, `romtool` refuses to
 omit bytes unless `--allow-truncate` is given (in which case the
@@ -94,21 +89,21 @@ remainder is dropped with a warning on stderr):
 ## Command Options
 
     --pad-byte 0xnn   (combine) fills any missing bytes in shorter inputs
-                      with this hex (00-FF) or decimal value (0-255) so they
+                      with hex (0x00-0xFF) or decimal value (0-255) so they
                       match the length of the longest input.
     --allow-truncate  (split) allows the input file's size to not be evenly
                       divisible by N, dropping the trailing bytes that don't
                       fill a complete row.
 
-Each input file has its CRC16, CRC32, and MD5 checksums reported as it's
-read, before `romtool` does anything else with it, e.g.:
+Each read input file has its CRC16, CRC32, and MD5 checksums reported before
+`romtool` does anything else with it, e.g.:
 
-    LOW.bin: crc16=1234 crc32=abcdef01 md5=25f9e794323b453885f5181f1b624d0b
+    LOW.bin: crc16=9A12 crc32=02BC051A md5=25f9e79432...
 
-Each successfully written output file has its CRC16, CRC32, and SHA-256
+Each successfully written output file also has its CRC16, CRC32, and MD5
 checksums reported, e.g.:
 
-    combined.bin: crc16=29b1 crc32=1a2b3c4d sha256=9f86d0818...
+    combined.bin: crc16=29B1 crc32=1A2B3C4D md5=9f86d0818...
 
 ## Requirements
 
@@ -122,6 +117,6 @@ Python 3.9+. No third-party runtime dependencies.
 
 Because I wanted a tool to combine low and high files to view the full data.
 
-Looking on the web, found such a tool in a rather sketchy forum.  Downloaded it, but wasn't going to run anything without examining it.  Found the Windows file packed with UPX.  Tried to decompress it, but the header was scrubbed.  Should have left it at that and ran away... but decided to have Claude try to make a static-analysis tool to patch such executables so they could be decompressed (by UPX natively.)  I explicitly told it that this must be static-analysis only, and to never "dynamically get an import table." Furthermore, I told it nothing of this particular file - just of scrubbed UPX executables in general.  Well Claude or one of its sub-agents somehow found this file,and ran it (to verify the imports), which infected a whole workplace with some kind of worm!
+Looking on the web, found such a tool in a rather sketchy forum.  Downloaded it, but wasn't going to run anything without examining it.  Found the Windows file packed with UPX which was a little suspicious.  Tried to decompress it, but the header was scrubbed - even more suspicious.  Should have left it at that and ran away... but decided to have Claude try to make a static-analysis tool to patch such executables so they could be decompressed (by UPX natively.)  I explicitly told it that this must be static-analysis only, and to never "dynamically get an import table." Furthermore, I told it nothing of this particular file - just of scrubbed UPX executables in general.  Well Claude or one of its sub-agents somehow found this file, and ran it (I'm guessing to verify the legitimately-reconstructed imports), which then infected a whole workplace with some kind of worm!
 
-Ironically, see in the next day's Claude release notes, lots of fixes for similar rogue behavior.  Let this be a warning whenever using Claude - a sandbox is not just a good idea.
+Ironically, in the next day's Claude release notes, see lots of fixes for similar rogue behavior.  Let this be a warning whenever using Claude - a sandbox is not just a good idea; it could totally save your bacon.

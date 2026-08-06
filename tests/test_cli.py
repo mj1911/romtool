@@ -126,14 +126,16 @@ def test_cmd_combine_writes_interleaved_output_and_prints_checksums(
     high_crc16, high_crc32, high_md5 = core.checksums(
         high.read_bytes(), third="md5"
     )
-    crc16_hex, crc32_hex, sha256_hex = core.checksums(out.read_bytes())
+    crc16_hex, crc32_hex, out_md5_hex = core.checksums(
+        out.read_bytes(), third="md5"
+    )
 
     low_line = f"{low}: crc16={low_crc16} crc32={low_crc32} md5={low_md5}"
     high_line = (
         f"{high}: crc16={high_crc16} crc32={high_crc32} md5={high_md5}"
     )
     out_line = (
-        f"{out}: crc16={crc16_hex} crc32={crc32_hex} sha256={sha256_hex}"
+        f"{out}: crc16={crc16_hex} crc32={crc32_hex} md5={out_md5_hex}"
     )
 
     assert low_line in captured.out
@@ -281,20 +283,22 @@ def test_cmd_split_with_outputs_writes_deinterleaved_files_and_checksums(
     in_crc16, in_crc32, in_md5 = core.checksums(
         combined.read_bytes(), third="md5"
     )
-    low_crc16, low_crc32, low_sha256 = core.checksums(low_out.read_bytes())
-    high_crc16, high_crc32, high_sha256 = core.checksums(
-        high_out.read_bytes()
+    low_crc16, low_crc32, low_md5 = core.checksums(
+        low_out.read_bytes(), third="md5"
+    )
+    high_crc16, high_crc32, high_md5 = core.checksums(
+        high_out.read_bytes(), third="md5"
     )
     input_line = (
         f"{combined}: crc16={in_crc16} crc32={in_crc32} md5={in_md5}"
     )
     low_line = (
         f"{low_out}: crc16={low_crc16} crc32={low_crc32} "
-        f"sha256={low_sha256}"
+        f"md5={low_md5}"
     )
     high_line = (
         f"{high_out}: crc16={high_crc16} crc32={high_crc32} "
-        f"sha256={high_sha256}"
+        f"md5={high_md5}"
     )
     assert input_line in captured.out
     assert low_line in captured.out
@@ -319,19 +323,19 @@ def test_cmd_split_with_n_auto_names_outputs(tmp_path, capsys):
     assert part1.read_bytes() == b"\xAA\xBB\xCC"
 
     captured = capsys.readouterr()
-    part0_crc16, part0_crc32, part0_sha256 = core.checksums(
-        part0.read_bytes()
+    part0_crc16, part0_crc32, part0_md5 = core.checksums(
+        part0.read_bytes(), third="md5"
     )
-    part1_crc16, part1_crc32, part1_sha256 = core.checksums(
-        part1.read_bytes()
+    part1_crc16, part1_crc32, part1_md5 = core.checksums(
+        part1.read_bytes(), third="md5"
     )
     assert (
         f"{part0}: crc16={part0_crc16} crc32={part0_crc32} "
-        f"sha256={part0_sha256}" in captured.out
+        f"md5={part0_md5}" in captured.out
     )
     assert (
         f"{part1}: crc16={part1_crc16} crc32={part1_crc32} "
-        f"sha256={part1_sha256}" in captured.out
+        f"md5={part1_md5}" in captured.out
     )
 
 

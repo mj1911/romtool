@@ -110,8 +110,8 @@ def _write_output(path: Path, data: bytes) -> None:
 
 
 def _print_checksum_line(path: Path, data: bytes) -> None:
-    crc16_hex, crc32_hex, sha256_hex = core.checksums(data)
-    print(f"{path}: crc16={crc16_hex} crc32={crc32_hex} sha256={sha256_hex}")
+    crc16_hex, crc32_hex, md5_hex = core.checksums(data, third="md5")
+    print(f"{path}: crc16={crc16_hex} crc32={crc32_hex} md5={md5_hex}")
 
 
 def _print_input_checksum_line(path: Path, data: bytes) -> None:
