@@ -1,6 +1,8 @@
 import argparse
 from pathlib import Path
 
+from romtool import core
+
 
 def parse_pad_byte(value: str) -> int:
     try:
@@ -84,3 +86,51 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     return parser
+
+
+class RomToolError(Exception):
+    """Raised for user-facing errors (bad input, size mismatches)."""
+
+
+def _read_file(path: Path) -> bytes:
+    try:
+        return path.read_bytes()
+    except OSError as e:
+        raise RomToolError(f"cannot read {path}: {e.strerror}")
+
+
+def _write_output(path: Path, data: bytes) -> None:
+    try:
+        path.write_bytes(data)
+    except OSError as e:
+        raise RomToolError(f"cannot write {path}: {e.strerror}")
+
+
+def _print_checksum_line(path: Path, data: bytes) -> None:
+    crc32_hex, sha256_hex = core.checksums(data)
+    print(f"{path}: crc32={crc32_hex} sha256={sha256_hex}")
+
+
+def cmd_combine(args: argparse.Namespace) -> int:
+    datas = [_read_file(p) for p in args.inputs]
+    lengths = [len(d) for d in datas]
+
+    if args.pad_byte is None:
+        if len(set(lengths)) > 1:
+            sizes = ", ".join(
+                f"{p}={n}" for p, n in zip(args.inputs, lengths)
+            )
+            raise RomToolError(
+                f"input files have mismatched sizes ({sizes}); "
+                "use --pad-byte to pad shorter files, or fix the inputs"
+            )
+    else:
+        max_len = max(lengths)
+        datas = [
+            d + bytes([args.pad_byte]) * (max_len - len(d)) for d in datas
+        ]
+
+    combined = core.interleave(datas)
+    _write_output(args.output, combined)
+    _print_checksum_line(args.output, combined)
+    return 0

@@ -1,6 +1,7 @@
 import pytest
 
-from romtool.cli import build_parser
+from romtool import core
+from romtool.cli import build_parser, RomToolError, cmd_combine
 
 
 def test_parser_combine_basic():
@@ -98,3 +99,78 @@ def test_parser_missing_subcommand(capsys):
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args([])
     assert exc_info.value.code == 2
+
+
+def test_cmd_combine_writes_interleaved_output_and_prints_checksums(
+    tmp_path, capsys
+):
+    low = tmp_path / "low.bin"
+    high = tmp_path / "high.bin"
+    out = tmp_path / "out.bin"
+    low.write_bytes(b"\x01\x02\x03")
+    high.write_bytes(b"\xAA\xBB\xCC")
+
+    parser = build_parser()
+    args = parser.parse_args(
+        ["combine", str(low), str(high), "-o", str(out)]
+    )
+    exit_code = cmd_combine(args)
+
+    assert exit_code == 0
+    assert out.read_bytes() == b"\x01\xAA\x02\xBB\x03\xCC"
+
+    captured = capsys.readouterr()
+    crc32_hex, sha256_hex = core.checksums(out.read_bytes())
+    assert f"{out}: crc32={crc32_hex} sha256={sha256_hex}" in captured.out
+
+
+def test_cmd_combine_size_mismatch_without_pad_byte_raises(tmp_path):
+    low = tmp_path / "low.bin"
+    high = tmp_path / "high.bin"
+    out = tmp_path / "out.bin"
+    low.write_bytes(b"\x01\x02\x03")
+    high.write_bytes(b"\xAA\xBB")
+
+    parser = build_parser()
+    args = parser.parse_args(
+        ["combine", str(low), str(high), "-o", str(out)]
+    )
+
+    with pytest.raises(RomToolError):
+        cmd_combine(args)
+    assert not out.exists()
+
+
+def test_cmd_combine_pads_shorter_inputs(tmp_path):
+    low = tmp_path / "low.bin"
+    high = tmp_path / "high.bin"
+    out = tmp_path / "out.bin"
+    low.write_bytes(b"\x01\x02\x03")
+    high.write_bytes(b"\xAA\xBB")
+
+    parser = build_parser()
+    args = parser.parse_args(
+        [
+            "combine", str(low), str(high), "-o", str(out),
+            "--pad-byte", "0xFF",
+        ]
+    )
+    exit_code = cmd_combine(args)
+
+    assert exit_code == 0
+    assert out.read_bytes() == b"\x01\xAA\x02\xBB\x03\xFF"
+
+
+def test_cmd_combine_missing_input_file_raises(tmp_path):
+    missing = tmp_path / "missing.bin"
+    high = tmp_path / "high.bin"
+    high.write_bytes(b"\xAA")
+    out = tmp_path / "out.bin"
+
+    parser = build_parser()
+    args = parser.parse_args(
+        ["combine", str(missing), str(high), "-o", str(out)]
+    )
+
+    with pytest.raises(RomToolError):
+        cmd_combine(args)
