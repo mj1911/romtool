@@ -59,7 +59,8 @@ class _MinLengthAction(argparse.Action):
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="romtool")
     parser.add_argument(
-        "--version", action="version", version=f"%(prog)s {__version__}"
+        "--version", action="version", version=f"%(prog)s {__version__} - " \
+        "home: https://github.com/mj1911/romtool"
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 

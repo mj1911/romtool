@@ -32,7 +32,7 @@ def crc16_ccitt_false(data: bytes) -> int:
 
 def interleave(streams: list[bytes]) -> bytes:
     """Combine equal-length byte streams by interleaving one byte from
-    each in turn. All streams must already be the same length — padding
+    each in turn.  All streams must already be the same length — padding
     is the caller's responsibility."""
     n = len(streams)
     length = len(streams[0])
@@ -43,7 +43,7 @@ def interleave(streams: list[bytes]) -> bytes:
 
 
 def deinterleave(data: bytes, n: int) -> list[bytes]:
-    """Split interleaved bytes into n equal-length streams. len(data)
+    """Split interleaved bytes into n equal-length streams.  len(data)
     must already be a multiple of n — truncation is the caller's
     responsibility."""
     return [data[j::n] for j in range(n)]
@@ -51,8 +51,8 @@ def deinterleave(data: bytes, n: int) -> list[bytes]:
 
 def checksums(data: bytes) -> tuple[str, str, str, str]:
     """Returns (sum_hex, crc16_hex, crc32_hex, md5_hex) for the given
-    bytes, each upper-cased hex. sum_hex is the plain sum of byte
-    values, zero-padded to at least 4 digits but never truncated."""
+    bytes, all upper-case.  sum_hex is the plain sum of byte
+    values, zero-padded to at least 4 digits."""
     sum_hex = f"{sum(data):04X}"
     crc16_hex = f"{crc16_ccitt_false(data):04X}"
     crc32_hex = f"{zlib.crc32(data):08X}"

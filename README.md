@@ -1,15 +1,15 @@
 # romtool
 
 `romtool` interleaves (combines) and de-interleaves (splits) binary
-ROM/EEPROM images, byte-wise, across any number of files.
+ROM/EPROM images, byte-wise, across any number of files.
 
-This is the classic problem when working with retro hardware that spreads
-a single logical ROM across multiple physical chips — for example a 16-bit
+This is a classic problem when working with retro hardware that spreads a
+single logical ROM across multiple physical chips — for example a 16-bit
 system that stores even bytes in one EPROM and odd bytes in another
 ("Low"/"High" halves), or some obscure board that splits a program across
-4 chips. `romtool` reassembles those dumps into a single linear image for
-analysis, and can also split a linear image back into chip-sized pieces for 
-burning to physical hardware.
+4 or even 8 chips. `romtool` reassembles those dumps into a single linear
+image for analysis, or can split a linear image back into chip-sized pieces
+for burning to physical hardware.
 
 It works on any binary file, not just ROM dumps — anything that needs
 byte-wise interleaving/de-interleaving across N files will work. `romtool`
@@ -24,17 +24,16 @@ should run on Windows, Linux, and Mac.
   output files, reversing what `combine` does.
 - Input files for `combine` are normally required to be the same length;
   `--pad-byte` relaxes that by padding shorter files up to the longest
-  one.  Missing bytes are filled in with the pad byte.
+  one.  Missing bytes are filled in with the specified pad byte value.
 - Input size for `split` is normally required to be evenly divisible by
   N; `--allow-truncate` relaxes that by dropping trailing bytes that
-  don't fill a complete row.
+  don't fill a complete row.  Use with caution.
 - Every input and output file gets a plain byte-sum, CRC16, CRC32, and
   md5 checksum printed, so you can verify results or compare against
   known-good dumps.
 - `combine` and `split` are exact inverses of each other (given
   same-sized inputs and no truncation), so round-tripping a set of files
-  through both reproduces the originals byte-for-byte.  This is how the test
-  verifies correct operation.
+  through both reproduces the originals byte-for-byte.
 
 ## Install
 
@@ -115,10 +114,34 @@ Python 3.9+. No third-party runtime dependencies.
 
     pytest
 
+## Helpful Tidbits
+
+When naming EPROM files, I find it very helpful to include the model of chip
+as well as the sum in the filename, and anything else that'll make it easier
+to figure out where it physically goes.  Most programmers at least display the
+sum, so one can be sure it was read/written successfully.  Ex:
+
+    K-Tron_K-Commander_PCMCIA_RomLow_ST27C2001_0x15B25BC.bin
+
 ## Why?
 
 Because I wanted a tool to combine low and high files to view the full data.
 
-Looking on the web, such tools are a dime a dozen, but are all sketchy.  Found such a tool in a rather obscure forum.  Downloaded it, but wasn't going to run anything without examining it.  Found the file packed with UPX, which was a little suspicious.  Tried to decompress it, but the header was scrubbed - even more suspicious.  Should have left it at that and walked away... but decided to have Claude try to make a static-analysis tool to patch such executables (reconstruct the scrubbed headers) so they could be decompressed by UPX natively.  I explicitly told it that this must be static-analysis only, and to never "dynamically get an import table." Furthermore, I told it nothing of this particular file - just of scrubbed UPX executables in general and even gave it an example file.  And it totally worked!  Patched the files and decompressed successfully.  However, Claude or one of its sub-agents somehow found this particular file and ran it (I'm guessing to verify the dynamic imports), which then infected a whole workplace with some kind of nasty worm!
+Looking on the web, such tools are a dime a dozen, but are all sketchy.  Found
+such a tool in a rather obscure forum which seemed safe.  Downloaded it, but
+wasn't going to run it without examining it first.  Discovered the file was
+packed with UPX, which was a little suspicious but not unheard-of.  Tried to
+decompress it, but the UPX header was scrubbed - even more suspicious.  Should
+have left it at that and walked away... but decided to have Claude try to make
+a static-analysis tool to patch such executables (reconstruct the scrubbed
+headers) so they could be decompressed by UPX natively.  I explicitly told it
+that this must be static-analysis only, and to never "dynamically get an
+import table." Furthermore, I told it nothing of this particular file - just
+of scrubbed UPX executables in general (and it even created its own example
+files.)  And it totally worked!  Patched the example file and UPX decompressed
+it successfully.  However, Claude or one of its sub-agents somehow found the
+questionable file and thought it was a perfect test candidate, so *ran it*
+(I'm guessing to verify the dynamic imports), which then infected a whole
+workplace with some kind of nasty worm!
 
-Ironically, in the next day's Claude release notes, saw lots of fixes for similar rogue behavior.  Let this be a warning whenever using AI agents: a sandbox is not just a good idea; it will totally save your bacon.
+Ironically, in the next day's Claude release notes, saw lots of fixes for similar rogue behavior.  Let this be a warning whenever using AI agents: a bulletproof sandbox is not just a good idea; *it will totally save your bacon.*
