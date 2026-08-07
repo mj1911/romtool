@@ -110,12 +110,7 @@ def _write_output(path: Path, data: bytes) -> None:
 
 
 def _print_checksum_line(path: Path, data: bytes) -> None:
-    crc16_hex, crc32_hex, md5_hex = core.checksums(data, third="md5")
-    print(f"{path}: crc16={crc16_hex} crc32={crc32_hex} md5={md5_hex}")
-
-
-def _print_input_checksum_line(path: Path, data: bytes) -> None:
-    crc16_hex, crc32_hex, md5_hex = core.checksums(data, third="md5")
+    crc16_hex, crc32_hex, md5_hex = core.checksums(data)
     print(f"{path}: crc16={crc16_hex} crc32={crc32_hex} md5={md5_hex}")
 
 
@@ -123,7 +118,7 @@ def cmd_combine(args: argparse.Namespace) -> int:
     datas = []
     for p in args.inputs:
         data = _read_file(p)
-        _print_input_checksum_line(p, data)
+        _print_checksum_line(p, data)
         datas.append(data)
     lengths = [len(d) for d in datas]
 
@@ -166,7 +161,7 @@ def cmd_split(args: argparse.Namespace) -> int:
     data = _read_file(args.input)
     # Printed before truncation: this checksum is of the full on-disk
     # file, not the truncated data used below.
-    _print_input_checksum_line(args.input, data)
+    _print_checksum_line(args.input, data)
     remainder = len(data) % n
     if remainder != 0:
         if not args.allow_truncate:

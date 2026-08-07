@@ -49,18 +49,10 @@ def deinterleave(data: bytes, n: int) -> list[bytes]:
     return [data[j::n] for j in range(n)]
 
 
-def checksums(data: bytes, *, third: str = "sha256") -> tuple[str, str, str]:
-    """Returns (crc16_hex, crc32_hex, third_hex) for the given bytes.
-    third selects the third algorithm: "sha256" or "md5"."""
-    crc16_hex = f"{crc16_ccitt_false(data):04x}"
-    crc32_hex = f"{zlib.crc32(data):08x}"
-    if third == "sha256":
-        third_hex = hashlib.sha256(data).hexdigest()
-    elif third == "md5":
-        third_hex = hashlib.md5(data, usedforsecurity=False).hexdigest()
-    else:
-        raise ValueError(
-            f"unsupported third algorithm: {third!r} "
-            "(expected 'sha256' or 'md5')"
-        )
-    return crc16_hex, crc32_hex, third_hex
+def checksums(data: bytes) -> tuple[str, str, str]:
+    """Returns (crc16_hex, crc32_hex, md5_hex) for the given bytes,
+    each upper-cased hex."""
+    crc16_hex = f"{crc16_ccitt_false(data):04X}"
+    crc32_hex = f"{zlib.crc32(data):08X}"
+    md5_hex = hashlib.md5(data, usedforsecurity=False).hexdigest().upper()
+    return crc16_hex, crc32_hex, md5_hex

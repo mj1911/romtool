@@ -53,73 +53,54 @@ def test_randomized_roundtrip(n, seed):
 
 
 def test_checksums_empty():
-    crc16_hex, crc32_hex, sha256_hex = core.checksums(b"")
-    assert crc16_hex == "ffff"
+    crc16_hex, crc32_hex, md5_hex = core.checksums(b"")
+    assert crc16_hex == "FFFF"
     assert crc32_hex == "00000000"
-    assert sha256_hex == (
-        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-    )
+    assert md5_hex == "D41D8CD98F00B204E9800998ECF8427E"
 
 
 def test_checksums_crc32_known_check_value():
     # "123456789" is the standard CRC-32/ISO-HDLC (zlib) check value input;
     # the expected CRC32 is the well-known catalogue check value 0xCBF43926.
     _, crc32_hex, _ = core.checksums(b"123456789")
-    assert crc32_hex == "cbf43926"
+    assert crc32_hex == "CBF43926"
 
 
 def test_checksums_crc16_known_check_value():
     # Same "123456789" catalogue input; expected CRC-16/CCITT-FALSE is
     # the well-known check value 0x29B1.
     crc16_hex, _, _ = core.checksums(b"123456789")
-    assert crc16_hex == "29b1"
+    assert crc16_hex == "29B1"
 
 
 def test_checksums_crc16_is_zero_padded():
     # crc16 of b"\x00\x00\x0c" is 0x0d10 — exercises the leading-zero pad.
-    assert core.checksums(b"\x00\x00\x0c")[0] == "0d10"
+    assert core.checksums(b"\x00\x00\x0c")[0] == "0D10"
 
 
 def test_checksums_format_and_determinism():
     data = bytes(range(256))
-    crc16_hex, crc32_hex, sha256_hex = core.checksums(data)
+    crc16_hex, crc32_hex, md5_hex = core.checksums(data)
     assert len(crc16_hex) == 4
     assert len(crc32_hex) == 8
-    assert len(sha256_hex) == 64
-    assert crc16_hex == crc16_hex.lower()
-    assert crc32_hex == crc32_hex.lower()
-    assert sha256_hex == sha256_hex.lower()
-    assert core.checksums(data) == (crc16_hex, crc32_hex, sha256_hex)
+    assert len(md5_hex) == 32
+    assert crc16_hex == crc16_hex.upper()
+    assert crc32_hex == crc32_hex.upper()
+    assert md5_hex == md5_hex.upper()
+    assert core.checksums(data) == (crc16_hex, crc32_hex, md5_hex)
 
 
 def test_checksums_md5_known_check_value():
     # "123456789" MD5 catalogue check value, independently verified
     # against hashlib.md5(b"123456789").hexdigest().
-    crc16_hex, crc32_hex, md5_hex = core.checksums(
-        b"123456789", third="md5"
-    )
-    assert crc16_hex == "29b1"
-    assert crc32_hex == "cbf43926"
-    assert md5_hex == "25f9e794323b453885f5181f1b624d0b"
+    crc16_hex, crc32_hex, md5_hex = core.checksums(b"123456789")
+    assert crc16_hex == "29B1"
+    assert crc32_hex == "CBF43926"
+    assert md5_hex == "25F9E794323B453885F5181F1B624D0B"
 
 
 def test_checksums_md5_empty():
-    assert core.checksums(b"", third="md5")[2] == (
-        "d41d8cd98f00b204e9800998ecf8427e"
-    )
-
-
-def test_checksums_default_third_is_sha256():
-    # Omitting `third` still defaults to sha256 — unchanged from before
-    # this function was generalized.
-    assert core.checksums(b"123456789") == core.checksums(
-        b"123456789", third="sha256"
-    )
-
-
-def test_checksums_unsupported_third_raises():
-    with pytest.raises(ValueError):
-        core.checksums(b"data", third="bogus")
+    assert core.checksums(b"")[2] == "D41D8CD98F00B204E9800998ECF8427E"
 
 
 def test_crc16_ccitt_false_empty():

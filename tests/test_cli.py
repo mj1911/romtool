@@ -120,15 +120,9 @@ def test_cmd_combine_writes_interleaved_output_and_prints_checksums(
     assert out.read_bytes() == b"\x01\xAA\x02\xBB\x03\xCC"
 
     captured = capsys.readouterr()
-    low_crc16, low_crc32, low_md5 = core.checksums(
-        low.read_bytes(), third="md5"
-    )
-    high_crc16, high_crc32, high_md5 = core.checksums(
-        high.read_bytes(), third="md5"
-    )
-    crc16_hex, crc32_hex, out_md5_hex = core.checksums(
-        out.read_bytes(), third="md5"
-    )
+    low_crc16, low_crc32, low_md5 = core.checksums(low.read_bytes())
+    high_crc16, high_crc32, high_md5 = core.checksums(high.read_bytes())
+    crc16_hex, crc32_hex, out_md5_hex = core.checksums(out.read_bytes())
 
     low_line = f"{low}: crc16={low_crc16} crc32={low_crc32} md5={low_md5}"
     high_line = (
@@ -184,12 +178,8 @@ def test_cmd_combine_size_mismatch_still_prints_input_checksums(
     assert not out.exists()
 
     captured = capsys.readouterr()
-    low_crc16, low_crc32, low_md5 = core.checksums(
-        low.read_bytes(), third="md5"
-    )
-    high_crc16, high_crc32, high_md5 = core.checksums(
-        high.read_bytes(), third="md5"
-    )
+    low_crc16, low_crc32, low_md5 = core.checksums(low.read_bytes())
+    high_crc16, high_crc32, high_md5 = core.checksums(high.read_bytes())
     assert (
         f"{low}: crc16={low_crc16} crc32={low_crc32} md5={low_md5}"
         in captured.out
@@ -252,9 +242,7 @@ def test_cmd_combine_prints_earlier_input_checksums_before_later_read_failure(
         cmd_combine(args)
 
     captured = capsys.readouterr()
-    low_crc16, low_crc32, low_md5 = core.checksums(
-        low.read_bytes(), third="md5"
-    )
+    low_crc16, low_crc32, low_md5 = core.checksums(low.read_bytes())
     assert (
         f"{low}: crc16={low_crc16} crc32={low_crc32} md5={low_md5}"
         in captured.out
@@ -280,15 +268,9 @@ def test_cmd_split_with_outputs_writes_deinterleaved_files_and_checksums(
     assert high_out.read_bytes() == b"\xAA\xBB\xCC"
 
     captured = capsys.readouterr()
-    in_crc16, in_crc32, in_md5 = core.checksums(
-        combined.read_bytes(), third="md5"
-    )
-    low_crc16, low_crc32, low_md5 = core.checksums(
-        low_out.read_bytes(), third="md5"
-    )
-    high_crc16, high_crc32, high_md5 = core.checksums(
-        high_out.read_bytes(), third="md5"
-    )
+    in_crc16, in_crc32, in_md5 = core.checksums(combined.read_bytes())
+    low_crc16, low_crc32, low_md5 = core.checksums(low_out.read_bytes())
+    high_crc16, high_crc32, high_md5 = core.checksums(high_out.read_bytes())
     input_line = (
         f"{combined}: crc16={in_crc16} crc32={in_crc32} md5={in_md5}"
     )
@@ -323,12 +305,8 @@ def test_cmd_split_with_n_auto_names_outputs(tmp_path, capsys):
     assert part1.read_bytes() == b"\xAA\xBB\xCC"
 
     captured = capsys.readouterr()
-    part0_crc16, part0_crc32, part0_md5 = core.checksums(
-        part0.read_bytes(), third="md5"
-    )
-    part1_crc16, part1_crc32, part1_md5 = core.checksums(
-        part1.read_bytes(), third="md5"
-    )
+    part0_crc16, part0_crc32, part0_md5 = core.checksums(part0.read_bytes())
+    part1_crc16, part1_crc32, part1_md5 = core.checksums(part1.read_bytes())
     assert (
         f"{part0}: crc16={part0_crc16} crc32={part0_crc32} "
         f"md5={part0_md5}" in captured.out
@@ -378,9 +356,7 @@ def test_cmd_split_non_divisible_still_prints_input_checksum(
         cmd_split(args)
 
     captured = capsys.readouterr()
-    crc16_hex, crc32_hex, md5_hex = core.checksums(
-        combined.read_bytes(), third="md5"
-    )
+    crc16_hex, crc32_hex, md5_hex = core.checksums(combined.read_bytes())
     assert (
         f"{combined}: crc16={crc16_hex} crc32={crc32_hex} md5={md5_hex}"
         in captured.out
