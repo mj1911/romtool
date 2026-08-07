@@ -115,6 +115,50 @@ def _write_output(path: Path, data: bytes) -> None:
         raise RomToolError(f"cannot write {path}: {e.strerror}")
 
 
+def _collect_files(paths: list[Path], recursive: bool) -> list[Path]:
+    """Expands paths (files and/or folders) into a flat list of regular
+    files, in argument order then name-sorted within each folder.
+    Symlinks and non-regular files (sockets, FIFOs, etc.) are always
+    skipped, at any level. Files are de-duplicated by resolved path."""
+    collected: list[Path] = []
+    seen: set[Path] = set()
+
+    def add(p: Path) -> None:
+        resolved = p.resolve()
+        if resolved in seen:
+            return
+        seen.add(resolved)
+        collected.append(p)
+
+    def walk_dir(dir_path: Path, recurse: bool) -> None:
+        try:
+            entries = sorted(dir_path.iterdir(), key=lambda p: p.name)
+        except OSError as e:
+            raise RomToolError(f"cannot read {dir_path}: {e.strerror}")
+        for entry in entries:
+            if entry.is_symlink():
+                continue
+            if entry.is_dir():
+                if recurse:
+                    walk_dir(entry, recurse)
+            elif entry.is_file():
+                add(entry)
+            # else: socket/FIFO/device/etc. - silently skipped.
+
+    for p in paths:
+        if p.is_symlink():
+            continue
+        if not p.exists():
+            raise RomToolError(f"{p}: no such file or directory")
+        if p.is_file():
+            add(p)
+        elif p.is_dir():
+            walk_dir(p, recursive)
+        # else: socket/FIFO/device/etc. - silently skipped.
+
+    return collected
+
+
 def _print_checksum_line(path: Path, data: bytes) -> None:
     sum_hex, crc16_hex, crc32_hex, md5_hex = core.checksums(data)
     print(

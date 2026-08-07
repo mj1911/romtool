@@ -1,9 +1,11 @@
 import argparse
+import os
 
 import pytest
 
 from romtool import core
 from romtool.cli import (
+    _collect_files,
     _MinLengthAction,
     build_parser,
     RomToolError,
@@ -435,6 +437,117 @@ def test_cmd_split_allow_truncate_drops_remainder_and_warns(
 
     captured = capsys.readouterr()
     assert "truncat" in captured.err.lower()
+
+
+def test_collect_files_non_recursive_direct_children_only(tmp_path):
+    (tmp_path / "a.bin").write_bytes(b"a")
+    (tmp_path / "b.bin").write_bytes(b"b")
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    (sub / "c.bin").write_bytes(b"c")
+
+    result = _collect_files([tmp_path], recursive=False)
+
+    assert result == [tmp_path / "a.bin", tmp_path / "b.bin"]
+
+
+def test_collect_files_recursive_includes_nested_sorted(tmp_path):
+    (tmp_path / "b.bin").write_bytes(b"b")
+    (tmp_path / "a.bin").write_bytes(b"a")
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    (sub / "d.bin").write_bytes(b"d")
+    (sub / "c.bin").write_bytes(b"c")
+
+    result = _collect_files([tmp_path], recursive=True)
+
+    assert result == [
+        tmp_path / "a.bin",
+        tmp_path / "b.bin",
+        sub / "c.bin",
+        sub / "d.bin",
+    ]
+
+
+def test_collect_files_file_argument_included_directly(tmp_path):
+    f = tmp_path / "solo.bin"
+    f.write_bytes(b"solo")
+
+    result = _collect_files([f], recursive=False)
+
+    assert result == [f]
+
+
+def test_collect_files_deduplicates_overlapping_paths(tmp_path):
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    f = sub / "x.bin"
+    f.write_bytes(b"x")
+
+    # tmp_path (walked recursively) and f (the same file, given directly)
+    # both resolve to the same on-disk file.
+    result = _collect_files([tmp_path, f], recursive=True)
+
+    assert result == [f]
+
+
+def test_collect_files_nonexistent_path_raises(tmp_path):
+    missing = tmp_path / "missing"
+
+    with pytest.raises(RomToolError):
+        _collect_files([missing], recursive=False)
+
+
+@pytest.mark.skipif(
+    not hasattr(os, "symlink"), reason="platform has no symlink support"
+)
+def test_collect_files_skips_symlinked_file(tmp_path):
+    real = tmp_path / "real.bin"
+    real.write_bytes(b"data")
+    link = tmp_path / "link.bin"
+    try:
+        os.symlink(real, link)
+    except OSError:
+        pytest.skip("creating symlinks not permitted on this platform")
+
+    result = _collect_files([tmp_path], recursive=False)
+
+    assert result == [real]
+
+
+@pytest.mark.skipif(
+    not hasattr(os, "symlink"), reason="platform has no symlink support"
+)
+def test_collect_files_skips_symlinked_directory(tmp_path):
+    real_dir = tmp_path / "real_dir"
+    real_dir.mkdir()
+    (real_dir / "inside.bin").write_bytes(b"data")
+    link_dir = tmp_path / "link_dir"
+    try:
+        os.symlink(real_dir, link_dir, target_is_directory=True)
+    except OSError:
+        pytest.skip("creating symlinks not permitted on this platform")
+
+    result = _collect_files([tmp_path], recursive=True)
+
+    assert result == [real_dir / "inside.bin"]
+
+
+@pytest.mark.skipif(
+    not hasattr(os, "symlink"), reason="platform has no symlink support"
+)
+def test_collect_files_skips_top_level_symlink_argument(tmp_path):
+    real = tmp_path / "real.bin"
+    real.write_bytes(b"data")
+    link = tmp_path / "link.bin"
+    try:
+        os.symlink(real, link)
+    except OSError:
+        pytest.skip("creating symlinks not permitted on this platform")
+
+    result = _collect_files([link], recursive=False)
+
+    assert result == []
 
 
 from romtool.cli import main
