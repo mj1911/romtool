@@ -111,6 +111,33 @@ def test_parser_missing_subcommand(capsys):
     assert exc_info.value.code == 2
 
 
+def test_parser_compare_basic():
+    parser = build_parser()
+    args = parser.parse_args(["compare", "a.bin", "b.bin"])
+    assert args.command == "compare"
+    assert [str(p) for p in args.paths] == ["a.bin", "b.bin"]
+    assert args.recursive is False
+
+
+def test_parser_compare_recursive_flag():
+    parser = build_parser()
+    args = parser.parse_args(["compare", "dir", "--recursive"])
+    assert args.recursive is True
+
+
+def test_parser_compare_single_path_is_valid():
+    parser = build_parser()
+    args = parser.parse_args(["compare", "onlyone.bin"])
+    assert [str(p) for p in args.paths] == ["onlyone.bin"]
+
+
+def test_parser_compare_requires_at_least_one_path(capsys):
+    parser = build_parser()
+    with pytest.raises(SystemExit) as exc_info:
+        parser.parse_args(["compare"])
+    assert exc_info.value.code == 2
+
+
 def test_min_length_action_treats_none_values_as_too_few(capsys):
     # argparse passes values=None for nargs values that don't collect a
     # sequence; _MinLengthAction should still report "too few" via

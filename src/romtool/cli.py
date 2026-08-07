@@ -94,6 +94,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--allow-truncate", action="store_true", default=False
     )
 
+    compare_parser = subparsers.add_parser(
+        "compare", help="Find duplicate files (by MD5) among the given paths"
+    )
+    compare_parser.add_argument("paths", nargs="+", type=Path)
+    compare_parser.add_argument(
+        "--recursive", action="store_true", default=False
+    )
+
     return parser
 
 
