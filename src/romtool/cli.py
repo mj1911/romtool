@@ -113,8 +113,11 @@ def _write_output(path: Path, data: bytes) -> None:
 
 
 def _print_checksum_line(path: Path, data: bytes) -> None:
-    crc16_hex, crc32_hex, md5_hex = core.checksums(data)
-    print(f"{path}: crc16={crc16_hex} crc32={crc32_hex} md5={md5_hex}")
+    sum_hex, crc16_hex, crc32_hex, md5_hex = core.checksums(data)
+    print(
+        f"{path}: sum={sum_hex} crc16={crc16_hex} crc32={crc32_hex} "
+        f"md5={md5_hex}"
+    )
 
 
 def cmd_combine(args: argparse.Namespace) -> int:

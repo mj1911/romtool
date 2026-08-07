@@ -28,8 +28,9 @@ should run on Windows, Linux, and Mac.
 - Input size for `split` is normally required to be evenly divisible by
   N; `--allow-truncate` relaxes that by dropping trailing bytes that
   don't fill a complete row.
-- Every input and output file gets a CRC16, CRC32, and md5 checksum
-  printed, so you can verify results or compare against known-good dumps.
+- Every input and output file gets a plain byte-sum, CRC16, CRC32, and
+  md5 checksum printed, so you can verify results or compare against
+  known-good dumps.
 - `combine` and `split` are exact inverses of each other (given
   same-sized inputs and no truncation), so round-tripping a set of files
   through both reproduces the originals byte-for-byte.  This is how the test
@@ -96,15 +97,15 @@ remainder is dropped with a warning on stderr):
                       divisible by N, dropping the trailing bytes that don't
                       fill a complete row.
 
-Each read input file has its CRC16, CRC32, and MD5 checksums reported before
-`romtool` does anything else with it, e.g.:
+Each read input file has its sum, CRC16, CRC32, and MD5 checksums
+reported before `romtool` does anything else with it, e.g.:
 
-    LOW.bin: crc16=9A12 crc32=02BC051A md5=25F9E79432...
+    LOW.bin: sum=1F4A crc16=9A12 crc32=02BC051A md5=25F9E79432...
 
-Each successfully written output file also has its CRC16, CRC32, and MD5
-checksums reported, e.g.:
+Each successfully written output file also has its sum, CRC16, CRC32,
+and MD5 checksums reported, e.g.:
 
-    combined.bin: crc16=29B1 crc32=1A2B3C4D md5=9F86D0818...
+    combined.bin: sum=3165 crc16=29B1 crc32=1A2B3C4D md5=9F86D0818...
 
 ## Requirements
 
