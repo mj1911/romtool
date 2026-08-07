@@ -24,6 +24,10 @@ should run on Windows, Linux, and Mac.
   of file 2, ...) into a single output file.
 - **`split`** — reads one input file and de-interleaves it into N equal
   output files, reversing what `combine` does.
+- **`compare`** — reads a set of files/folders, MD5-hashes every file
+  found, and reports which files are byte-identical duplicates of which,
+  and which are unique. `--recursive` makes folder arguments descend
+  into subdirectories (off by default).
 - Input files for `combine` are normally required to be the same length;
   `--pad-byte` relaxes that by padding shorter files up to the longest
   one.  Missing bytes are filled in with the specified pad byte value.
@@ -91,6 +95,29 @@ remainder is dropped with a warning on stderr):
     error: combined.bin has size 3, not divisible by 2 (1 trailing bytes); use
     --allow-truncate to fix N/the input
 
+### Compare (find duplicates)
+
+    romtool compare path [path ...] [--recursive]
+
+Takes one or more files and/or folders, MD5-hashes every file found, and
+reports which are exact duplicates of each other and which are unique.
+Folder arguments only look at their direct children unless `--recursive`
+is given; file arguments are always included. Symlinks and non-regular
+files (sockets, devices, etc.) are always skipped. Example:
+
+    romtool compare dumps/ --recursive
+
+    duplicates:
+      dumps/copy_of_low.bin: duplicate of dumps/low.bin (md5=25F9E794323B453885F5181F1B624D0B)
+
+    unique:
+      dumps/high.bin (md5=9F86D081884C7D659A2FEAA0C55AD015)
+
+    scanned 3 file(s): 1 duplicate group(s), 1 unique
+
+Exit code is always 0 for a completed scan, whether or not duplicates
+were found — `compare` is a report, not a pass/fail check.
+
 ## Command Options
 
     --pad-byte 0xnn   (combine) fills any missing bytes in shorter inputs
@@ -99,6 +126,10 @@ remainder is dropped with a warning on stderr):
     --allow-truncate  (split) allows the input file's size to not be evenly
                       divisible by N, dropping the trailing bytes that don't
                       fill a complete row.
+    --recursive       (compare) makes folder arguments descend into
+                      subdirectories; without it, only a folder's direct
+                      children are considered. File arguments are always
+                      included regardless of this flag.
 
 Each read input file has its sum, CRC16, CRC32, and MD5 checksums
 reported before `romtool` does anything else with it, e.g.:
