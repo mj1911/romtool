@@ -52,8 +52,8 @@ def deinterleave(data: bytes, n: int) -> list[bytes]:
 def checksums(data: bytes) -> tuple[str, str, str, str]:
     """Returns (sum_hex, crc16_hex, crc32_hex, md5_hex) for the given
     bytes, each upper-cased hex. sum_hex is the plain sum of byte
-    values, wrapped mod 0x10000."""
-    sum_hex = f"{sum(data) & 0xFFFF:04X}"
+    values, zero-padded to at least 4 digits but never truncated."""
+    sum_hex = f"{sum(data):04X}"
     crc16_hex = f"{crc16_ccitt_false(data):04X}"
     crc32_hex = f"{zlib.crc32(data):08X}"
     md5_hex = hashlib.md5(data, usedforsecurity=False).hexdigest().upper()

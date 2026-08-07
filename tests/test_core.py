@@ -86,9 +86,15 @@ def test_checksums_crc16_is_zero_padded():
     assert core.checksums(b"\x00\x00\x0c")[1] == "0D10"
 
 
-def test_checksums_sum_is_zero_padded_and_wraps():
-    # sum of b"\xFF\xFF\xFF" is 0x2FD, wrapped mod 0x10000 and zero-padded.
+def test_checksums_sum_is_zero_padded():
+    # sum of b"\xFF\xFF\xFF" is 0x2FD, zero-padded to 4 digits.
     assert core.checksums(b"\xff\xff\xff")[0] == "02FD"
+
+
+def test_checksums_sum_grows_past_four_digits_instead_of_wrapping():
+    # 258 bytes of 0xFF sum to 65790 = 0x100FE, which needs 5 hex digits;
+    # it must not be truncated/wrapped mod 0x10000 (which would give 00FE).
+    assert core.checksums(b"\xff" * 258)[0] == "100FE"
 
 
 def test_checksums_format_and_determinism():
