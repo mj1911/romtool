@@ -4,7 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from romtool import core
+from romtool import __version__, core
 
 
 def parse_pad_byte(value: str) -> int:
@@ -56,6 +56,9 @@ class _MinLengthAction(argparse.Action):
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="romtool")
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     combine_parser = subparsers.add_parser(
