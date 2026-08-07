@@ -120,12 +120,27 @@ Python 3.9+. No third-party runtime dependencies.
 
 ## Helpful Tidbits
 
-When naming EPROM files, I find it very helpful to include the model of chip
-as well as the sum in the filename, and anything else that'll make it easier
-to figure out where it physically goes.  Most programmers at least display the
-sum, so one can be sure it was read/written successfully.  Ex:
+**When naming EPROM files**, I find it very helpful to include the unit, model,
+location, type of chip, as well as the sum in the filename.  Most programmers 
+at least display the sum, so one can be sure it was read/written successfully.  
+Ex:
 
     K-Tron_K-Commander_PCMCIA_RomLow_ST27C2001_0x15B25BC.bin
+
+**Chip labels (U1, U2, "Low"/"High", etc.) don't reliably tell you the real 
+byte order** — `romtool` has no way to know how a board's designer wired things
+up, and it's not uncommon for a chip labeled U1 to actually hold the
+high/odd bytes while U2 holds the low/even ones, or for the order to be
+non-obvious in a 4+ chip interleave. `combine` uses exactly the order you
+give it, nothing more. If the result looks like gibberish, try other input
+orderings and check for readable text, e.g.:
+
+    romtool combine U2.bin U1.bin -o test.bin && strings test.bin | less
+
+Another cause of garbled-looking combines is readable text that's merely
+interleaved with an unrelated data plane (attribute bytes, a lookup table,
+etc.) Stripping these non-ASCII bytes from a suspect region before giving up on
+an ordering can reveal text that `strings` misses.  
 
 ## Why?
 
