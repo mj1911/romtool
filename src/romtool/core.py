@@ -1,5 +1,6 @@
 import hashlib
 import zlib
+from pathlib import Path
 
 
 _CRC16_CCITT_FALSE_POLY = 0x1021
@@ -58,3 +59,28 @@ def checksums(data: bytes) -> tuple[str, str, str, str]:
     crc32_hex = f"{zlib.crc32(data):08X}"
     md5_hex = hashlib.md5(data, usedforsecurity=False).hexdigest().upper()
     return sum_hex, crc16_hex, crc32_hex, md5_hex
+
+
+def group_duplicates(
+    hashes: dict[Path, str]
+) -> tuple[dict[str, list[Path]], list[Path]]:
+    """Groups paths by hash. hashes maps path -> hash string, in
+    processing order (dict insertion order = first-processed file
+    first). Returns (duplicate_groups, unique_paths):
+      - duplicate_groups: {hash: [paths...]} for every hash shared by
+        2+ paths, values in first-seen order, dict keys in
+        first-seen-hash order.
+      - unique_paths: paths whose hash occurs exactly once, in
+        first-seen order.
+    """
+    by_hash: dict[str, list[Path]] = {}
+    for path, digest in hashes.items():
+        by_hash.setdefault(digest, []).append(path)
+
+    duplicate_groups = {
+        digest: paths for digest, paths in by_hash.items() if len(paths) > 1
+    }
+    unique_paths = [
+        paths[0] for paths in by_hash.values() if len(paths) == 1
+    ]
+    return duplicate_groups, unique_paths

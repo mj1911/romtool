@@ -1,4 +1,5 @@
 import random
+from pathlib import Path
 
 import pytest
 
@@ -135,3 +136,44 @@ def test_crc16_ccitt_false_known_check_value():
     # expected result is the well-known CRC-16/CCITT-FALSE check value
     # 0x29B1.
     assert core.crc16_ccitt_false(b"123456789") == 0x29B1
+
+
+def test_group_duplicates_all_unique():
+    hashes = {
+        Path("a.bin"): "AAAA",
+        Path("b.bin"): "BBBB",
+        Path("c.bin"): "CCCC",
+    }
+    duplicate_groups, unique_paths = core.group_duplicates(hashes)
+    assert duplicate_groups == {}
+    assert unique_paths == [Path("a.bin"), Path("b.bin"), Path("c.bin")]
+
+
+def test_group_duplicates_mixed_groups_and_uniques():
+    hashes = {
+        Path("a.bin"): "AAAA",
+        Path("b.bin"): "AAAA",
+        Path("c.bin"): "AAAA",
+        Path("d.bin"): "DDDD",
+        Path("e.bin"): "EEEE",
+        Path("f.bin"): "EEEE",
+    }
+    duplicate_groups, unique_paths = core.group_duplicates(hashes)
+    assert duplicate_groups == {
+        "AAAA": [Path("a.bin"), Path("b.bin"), Path("c.bin")],
+        "EEEE": [Path("e.bin"), Path("f.bin")],
+    }
+    # Dict key order reflects first-seen-hash order.
+    assert list(duplicate_groups.keys()) == ["AAAA", "EEEE"]
+    assert unique_paths == [Path("d.bin")]
+
+
+def test_group_duplicates_empty_input():
+    assert core.group_duplicates({}) == ({}, [])
+
+
+def test_group_duplicates_single_occurrence_is_not_a_duplicate():
+    hashes = {Path("only.bin"): "ZZZZ"}
+    duplicate_groups, unique_paths = core.group_duplicates(hashes)
+    assert duplicate_groups == {}
+    assert unique_paths == [Path("only.bin")]
