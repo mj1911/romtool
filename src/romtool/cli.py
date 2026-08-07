@@ -246,6 +246,38 @@ def cmd_split(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_compare(args: argparse.Namespace) -> int:
+    files = _collect_files(args.paths, args.recursive)
+
+    hashes: dict[Path, str] = {}
+    for path in files:
+        data = _read_file(path)
+        _, _, _, md5_hex = core.checksums(data)
+        hashes[path] = md5_hex
+
+    duplicate_groups, unique_paths = core.group_duplicates(hashes)
+
+    if duplicate_groups:
+        print("duplicates:")
+        for digest, paths in duplicate_groups.items():
+            canonical = paths[0]
+            for dup in paths[1:]:
+                print(f"  {dup}: duplicate of {canonical} (md5={digest})")
+        print()
+
+    if unique_paths:
+        print("unique:")
+        for path in unique_paths:
+            print(f"  {path} (md5={hashes[path]})")
+        print()
+
+    print(
+        f"scanned {len(files)} file(s): {len(duplicate_groups)} "
+        f"duplicate group(s), {len(unique_paths)} unique"
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -253,8 +285,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "combine":
             return cmd_combine(args)
-        else:
+        elif args.command == "split":
             return cmd_split(args)
+        else:
+            return cmd_compare(args)
     except RomToolError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1

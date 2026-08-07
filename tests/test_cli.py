@@ -10,6 +10,7 @@ from romtool.cli import (
     build_parser,
     RomToolError,
     cmd_combine,
+    cmd_compare,
     cmd_split,
 )
 
@@ -577,6 +578,110 @@ def test_collect_files_skips_top_level_symlink_argument(tmp_path):
     assert result == []
 
 
+def test_cmd_compare_reports_duplicates_and_unique(tmp_path, capsys):
+    a = tmp_path / "a.bin"
+    b = tmp_path / "b.bin"
+    c = tmp_path / "c.bin"
+    a.write_bytes(b"same")
+    b.write_bytes(b"same")
+    c.write_bytes(b"different")
+
+    parser = build_parser()
+    args = parser.parse_args(["compare", str(a), str(b), str(c)])
+    exit_code = cmd_compare(args)
+
+    assert exit_code == 0
+    _, _, _, same_md5 = core.checksums(b"same")
+    _, _, _, diff_md5 = core.checksums(b"different")
+    captured = capsys.readouterr()
+    assert "duplicates:" in captured.out
+    assert f"  {b}: duplicate of {a} (md5={same_md5})" in captured.out
+    assert "unique:" in captured.out
+    assert f"  {c} (md5={diff_md5})" in captured.out
+    assert (
+        "scanned 3 file(s): 1 duplicate group(s), 1 unique" in captured.out
+    )
+
+
+def test_cmd_compare_all_unique_omits_duplicates_section(tmp_path, capsys):
+    a = tmp_path / "a.bin"
+    b = tmp_path / "b.bin"
+    a.write_bytes(b"one")
+    b.write_bytes(b"two")
+
+    parser = build_parser()
+    args = parser.parse_args(["compare", str(a), str(b)])
+    exit_code = cmd_compare(args)
+
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    assert "duplicates:" not in captured.out
+    assert "unique:" in captured.out
+    assert (
+        "scanned 2 file(s): 0 duplicate group(s), 2 unique" in captured.out
+    )
+
+
+def test_cmd_compare_all_duplicate_omits_unique_section(tmp_path, capsys):
+    a = tmp_path / "a.bin"
+    b = tmp_path / "b.bin"
+    a.write_bytes(b"same")
+    b.write_bytes(b"same")
+
+    parser = build_parser()
+    args = parser.parse_args(["compare", str(a), str(b)])
+    exit_code = cmd_compare(args)
+
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    assert "duplicates:" in captured.out
+    assert "unique:" not in captured.out
+    assert (
+        "scanned 2 file(s): 1 duplicate group(s), 0 unique" in captured.out
+    )
+
+
+def test_cmd_compare_empty_folder_prints_zero_summary(tmp_path, capsys):
+    parser = build_parser()
+    args = parser.parse_args(["compare", str(tmp_path)])
+    exit_code = cmd_compare(args)
+
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    assert "duplicates:" not in captured.out
+    assert "unique:" not in captured.out
+    assert (
+        "scanned 0 file(s): 0 duplicate group(s), 0 unique" in captured.out
+    )
+
+
+def test_cmd_compare_nonexistent_path_raises(tmp_path):
+    missing = tmp_path / "missing.bin"
+
+    parser = build_parser()
+    args = parser.parse_args(["compare", str(missing)])
+
+    with pytest.raises(RomToolError):
+        cmd_compare(args)
+
+
+@pytest.mark.skipif(
+    os.name == "nt" or os.geteuid() == 0,
+    reason="permission bits don't block reads as root or on Windows",
+)
+def test_cmd_compare_unreadable_file_raises(tmp_path):
+    a = tmp_path / "a.bin"
+    a.write_bytes(b"data")
+    a.chmod(0o000)
+    try:
+        parser = build_parser()
+        args = parser.parse_args(["compare", str(a)])
+        with pytest.raises(RomToolError):
+            cmd_compare(args)
+    finally:
+        a.chmod(0o644)
+
+
 from romtool.cli import main
 
 
@@ -633,3 +738,16 @@ def test_main_combine_roundtrips_with_split(tmp_path):
 
     assert (tmp_path / "combined.part0.bin").read_bytes() == low.read_bytes()
     assert (tmp_path / "combined.part1.bin").read_bytes() == high.read_bytes()
+
+
+def test_main_compare_end_to_end(tmp_path, capsys):
+    a = tmp_path / "a.bin"
+    b = tmp_path / "b.bin"
+    a.write_bytes(b"same")
+    b.write_bytes(b"same")
+
+    exit_code = main(["compare", str(a), str(b)])
+
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    assert "duplicates:" in captured.out
