@@ -43,6 +43,7 @@ should run on Windows, Linux, and Mac.
 
     python -m venv .venv    (once, then)
     . .venv/bin/activate && pip install -e ".[test]"
+    romtool -h
 
 ## Usage
 
@@ -85,7 +86,8 @@ If the input's size isn't evenly divisible by N, `romtool` refuses to
 omit bytes unless `--allow-truncate` is given (in which case the
 remainder is dropped with a warning on stderr):
 
-    error: combined.bin has size 3, not divisible by 2 (1 trailing bytes); use --allow-truncate to fix N/the input
+    error: combined.bin has size 3, not divisible by 2 (1 trailing bytes); use
+    --allow-truncate to fix N/the input
 
 ## Command Options
 
@@ -144,4 +146,6 @@ questionable file and thought it was a perfect test candidate, so *ran it*
 (I'm guessing to verify the dynamic imports), which then infected a whole
 workplace with some kind of nasty worm!
 
-Ironically, in the next day's Claude release notes, saw lots of fixes for similar rogue behavior.  Let this be a warning whenever using AI agents: a bulletproof sandbox is not just a good idea; *it will totally save your bacon.*
+Ironically, in the next day's Claude release notes, saw lots of fixes for
+similar rogue behavior.  Let this be a warning whenever using AI agents: a
+bulletproof sandbox is not just a good idea; *it will totally save your bacon.*

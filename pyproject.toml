@@ -9,7 +9,7 @@ description = "Interleave and de-interleave binary ROM/EEPROM images"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
-authors = [{ name = "mj1911", email = "heliosstudios@gmail.com" }]
+authors = [{ name = "mj1911", email = "rhlabs@proton.me" }]
 
 [project.urls]
 Repository = "https://github.com/mj1911/romtool"

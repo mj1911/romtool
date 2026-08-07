@@ -10,4 +10,4 @@ venv/
 build/
 dist/
 install
-samples
+samples/
