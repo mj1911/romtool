@@ -45,6 +45,8 @@ class _MinLengthAction(argparse.Action):
         super().__init__(*args, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
+        if values is None:
+            values = []
         if len(values) < self.min_length:
             label = option_string or self.dest
             parser.error(

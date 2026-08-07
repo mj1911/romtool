@@ -1,7 +1,15 @@
+import argparse
+
 import pytest
 
 from romtool import core
-from romtool.cli import build_parser, RomToolError, cmd_combine, cmd_split
+from romtool.cli import (
+    _MinLengthAction,
+    build_parser,
+    RomToolError,
+    cmd_combine,
+    cmd_split,
+)
 
 
 def test_parser_combine_basic():
@@ -98,6 +106,20 @@ def test_parser_missing_subcommand(capsys):
     parser = build_parser()
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args([])
+    assert exc_info.value.code == 2
+
+
+def test_min_length_action_treats_none_values_as_too_few(capsys):
+    # argparse passes values=None for nargs values that don't collect a
+    # sequence; _MinLengthAction should still report "too few" via
+    # parser.error() rather than crashing on len(None).
+    parser = argparse.ArgumentParser()
+    action = _MinLengthAction(
+        option_strings=["--foo"], dest="foo", min_length=2
+    )
+    namespace = argparse.Namespace()
+    with pytest.raises(SystemExit) as exc_info:
+        action(parser, namespace, None, "--foo")
     assert exc_info.value.code == 2
 
 
