@@ -4,6 +4,7 @@ __pycache__/
 .claude/
 .pytest_cache/
 .superpowers/
+docs/
 .venv/
 venv/
 build/
