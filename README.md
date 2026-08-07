@@ -1,3 +1,5 @@
+<img width="1456" height="720" alt="romtool" src="https://github.com/user-attachments/assets/bfd640e4-0c94-42c8-b4e5-97937fb4322a" />
+
 # romtool
 
 `romtool` interleaves (combines) and de-interleaves (splits) binary
@@ -49,7 +51,7 @@ should run on Windows, Linux, and Mac.
 
 ### Combine (interleave)
 
-    `romtool combine file1 file2 filen -o outputfile [--pad-byte 0xnn]`
+    romtool combine file1 file2 filen -o outputfile [--pad-byte 0xnn]
 
 Takes 2 or more input files and interleaves them byte-by-byte into
 `outputfile`. All inputs must be the same size unless `--pad-byte` is
@@ -66,7 +68,7 @@ guess and reports the mismatched sizes:
 
 ### Split (de-interleave)
 
-    `romtool split inputfile [-n number]|[-o out1 out2 outn] [--allow-truncate]`
+    romtool split inputfile [-n number]|[-o out1 out2 outn] [--allow-truncate]
 
 Takes one input file and de-interleaves it into N output files, where N
 is either given directly with `-n`, or inferred from the number of
