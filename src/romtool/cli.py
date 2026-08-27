@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -244,6 +245,40 @@ def cmd_split(args: argparse.Namespace) -> int:
         _write_output(path, part)
         _print_checksum_line(path, part)
     return 0
+
+
+def _common_prefix_dir(paths: list[Path]) -> Path | None:
+    """Longest common ancestor directory shared by every path in
+    `paths`, computed from each path's as-given string form (not
+    resolved/absolute). Returns None when there's nothing meaningful
+    to strip: an empty list, a single path with no directory
+    component, mixed absolute/relative paths, or paths sharing no
+    directory component at all."""
+    if not paths:
+        return None
+    if len(paths) == 1:
+        parent = paths[0].parent
+        return parent if str(parent) not in ("", ".") else None
+    try:
+        common = os.path.commonpath([str(p) for p in paths])
+    except ValueError:
+        # Mixed absolute/relative paths (or, on Windows, different
+        # drives) - nothing meaningful to strip.
+        return None
+    if not common or common == ".":
+        return None
+    return Path(common)
+
+
+def _display_path(path: Path, prefix: Path | None) -> str:
+    """path relative to prefix if prefix is given and is actually an
+    ancestor of path; otherwise path unchanged, as a string."""
+    if prefix is None:
+        return str(path)
+    try:
+        return str(path.relative_to(prefix))
+    except ValueError:
+        return str(path)
 
 
 def cmd_compare(args: argparse.Namespace) -> int:

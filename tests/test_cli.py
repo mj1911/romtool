@@ -1,5 +1,6 @@
 import argparse
 import os
+from pathlib import Path
 
 import pytest
 
@@ -576,6 +577,64 @@ def test_collect_files_skips_top_level_symlink_argument(tmp_path):
     result = _collect_files([link], recursive=False)
 
     assert result == []
+
+
+from romtool.cli import _common_prefix_dir, _display_path
+
+
+def test_common_prefix_dir_shared_parent():
+    paths = [Path("samples/olicorp/a.olc"), Path("samples/olicorp/b.olc")]
+    assert _common_prefix_dir(paths) == Path("samples/olicorp")
+
+
+def test_common_prefix_dir_nested_common_ancestor():
+    paths = [
+        Path("samples/olicorp/sub/a.olc"),
+        Path("samples/olicorp/b.olc"),
+    ]
+    assert _common_prefix_dir(paths) == Path("samples/olicorp")
+
+
+def test_common_prefix_dir_single_path_uses_parent():
+    assert _common_prefix_dir([Path("samples/olicorp/a.olc")]) == Path(
+        "samples/olicorp"
+    )
+
+
+def test_common_prefix_dir_single_path_no_directory_is_none():
+    assert _common_prefix_dir([Path("a.olc")]) is None
+
+
+def test_common_prefix_dir_empty_list_is_none():
+    assert _common_prefix_dir([]) is None
+
+
+def test_common_prefix_dir_no_shared_directory_is_none():
+    assert _common_prefix_dir([Path("a.olc"), Path("b.olc")]) is None
+
+
+def test_common_prefix_dir_mixed_absolute_and_relative_is_none():
+    assert (
+        _common_prefix_dir([Path("/tmp/x/a.olc"), Path("rel/b.olc")])
+        is None
+    )
+
+
+def test_display_path_no_prefix_returns_full_path():
+    p = Path("samples/olicorp/a.olc")
+    assert _display_path(p, None) == str(p)
+
+
+def test_display_path_with_prefix_strips_it():
+    p = Path("samples/olicorp/a.olc")
+    prefix = Path("samples/olicorp")
+    assert _display_path(p, prefix) == "a.olc"
+
+
+def test_display_path_prefix_not_a_parent_falls_back_to_full_path():
+    p = Path("samples/olicorp/a.olc")
+    prefix = Path("other/dir")
+    assert _display_path(p, prefix) == str(p)
 
 
 def test_cmd_compare_reports_duplicates_and_unique(tmp_path, capsys):
