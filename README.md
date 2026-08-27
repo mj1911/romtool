@@ -20,6 +20,11 @@ Linux, and Mac.
 
 ## What it does (commands) and usage
 
+Every input and output file gets a byte-wise-sum, CRC16, CRC32, and MD5
+checksum printed so you can verify it against known-good data:
+
+    LOW.bin: sum=1F4A crc16=9A12 crc32=02BC051A md5=25F9E79432...
+
 - **`combine`** — reads N input files and interleaves them one byte at a
   time (byte 0 of file 1, byte 0 of file 2, ..., byte 1 of file 1, byte 1
   of file 2, ...) into a single output file.
@@ -50,7 +55,7 @@ don't fill a complete row; use with caution.
 
 - **`compare`** — reads a set of files/folders, MD5-hashes every file
   found, and reports which files are byte-identical duplicates, and which are 
-  unique.  Handy for de-duping a growing EPROM collection.  
+  unique.  Handy for de-duping a growing or messy ROM collection.  
   `--recursive` makes folder arguments descend into sub-directories 
   (off by default.)
 
@@ -66,12 +71,6 @@ don't fill a complete row; use with caution.
     
     unique (1 files):
       high.bin (md5=9F86D081884C7D659A2FEAA0C55AD015)
-
-Every input and output file gets a byte-wise-sum, CRC16, CRC32, and MD5
-checksum printed so you can verify results or compare against
-known-good data:
-
-    LOW.bin: sum=1F4A crc16=9A12 crc32=02BC051A md5=25F9E79432...
     
 ## Install and run (app only, no test framework)
 
@@ -108,11 +107,11 @@ location, type of chip, as well as the sum in the filename while avoiding
 spaces.  Many programmers display the sum, so one can verify it was read /
 written successfully. Ex:
 
-    KTron_K-Commander_PCMCIA_RomLow_ST27C2001_0x15B25BC.bin
+    KTron_K.Commander_PCMCIA_RomLow_ST27C2001_0x15B25BC.bin
 
 **Chip labels (U1, U2, "Low"/"High", etc.)** don't reliably indicate the real
 byte order — `romtool` has no way of knowing how a board's designer wired
-things, and it is not uncommon for a chip labeled U1 to actually hold the
+things, and it is common for a chip labeled U1 to actually hold the
 high/odd bytes while U2 holds the low/even ones, or for the order to be
 non-obvious in a 4+ chip set. `combine` uses exactly the order you
 specify, nothing more. If the result looks out-of-order, try other input
@@ -121,8 +120,8 @@ orderings and check for readable text, e.g.:
     romtool combine U2.bin U1.bin -o test.bin && strings test.bin | less
 
 Another cause of a garbled-looking combine is readable text that's simply
-interleaved with an unrelated data plane, such as attribute bytes, lookup
-tables, etc. 
+interleaved with an unrelated data plane, such as attribute bytes or a lookup
+table.
 
 ## Versions
 
