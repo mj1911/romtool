@@ -3,7 +3,7 @@
 # romtool
 
 `romtool` interleaves (combines) and de-interleaves (splits) binary
-ROM/EPROM images, byte-wise, across any number of files.  It also shows
+ROM/EPROM images, byte-wise, across any number of files.  It also can show
 duplicate/unique files.
 
 These are some classic problems when working with retro hardware which spreads a
@@ -37,7 +37,7 @@ one.  Missing bytes are filled in with the specified pad byte value.
 
 Input size for `split` is normally required to be evenly divisible by
 N; `--allow-truncate` relaxes that by dropping trailing bytes that
-don't fill a complete row.  Use with caution.
+don't fill a complete row; use with caution.
 
     romtool split inputfile [-n number]|[-o out1 out2 outn] [--allow-truncate]
     romtool split Combined.bin -o LOW.bin HIGH.bin
@@ -50,13 +50,12 @@ don't fill a complete row.  Use with caution.
 
 - **`compare`** — reads a set of files/folders, MD5-hashes every file
   found, and reports which files are byte-identical duplicates, and which are 
-  unique.
-
-`--recursive` makes folder arguments descend into sub-directories 
-(off by default).
+  unique.  Handy for de-duping a growing EPROM collection.  
+  `--recursive` makes folder arguments descend into sub-directories 
+  (off by default.)
 
     romtool compare path [path ...] [--recursive]
-    romtool compare dumps/ --recursive
+    romtool compare D:\dumps --recursive
     
     comparing 3 file(s) under dumps/
     
@@ -70,7 +69,7 @@ don't fill a complete row.  Use with caution.
 
 Every input and output file gets a byte-wise-sum, CRC16, CRC32, and MD5
 checksum printed so you can verify results or compare against
-known-good dumps:
+known-good data:
 
     LOW.bin: sum=1F4A crc16=9A12 crc32=02BC051A md5=25F9E79432...
     
@@ -90,8 +89,9 @@ known-good dumps:
     pip install -e ".[test]"
     romtool -h
 
-Changes made to the files are instantly reflected in the app - this folder
-*is* the location of the app; simply delete it to uninstall.
+Changes made to the files when installed this way are instantly reflected
+in the app - this folder *is* the location of the app; simply delete it to
+uninstall.
 
 ## Requirements
 
@@ -120,20 +120,21 @@ orderings and check for readable text, e.g.:
 
     romtool combine U2.bin U1.bin -o test.bin && strings test.bin | less
 
-Another cause of a garbled-looking combine is readable text that's
-interleaved with an unrelated data plane, such as attribute bytes, lookup tables,
-etc.
+Another cause of a garbled-looking combine is readable text that's simply
+interleaved with an unrelated data plane, such as attribute bytes, lookup
+tables, etc. 
 
 ## Versions
 
+    0.1.2 - Reworked compare output to be more readable.
     0.1.1 - Added compare command, showing which files are duplicates/unique.
     0.1.0 - Initial release; split and combine commands.
 
 ## Why?
 
-Because I wanted a tool to combine low and high files to view the full data.
-And being able to identify duplicate ROMs is very handy.
+Because I wanted a tool to combine low and high files to view the full data,
+and being able to identify duplicate ROMs is very handy.
 
-Looking on the web, such "binary merge" tools are common, but are all sketchy
-and some are even malware.  `romtool` is simple and open-source - you know 
-exactly what you're getting.
+Looking on the web, such "binary merge" tools are common, but *all are
+sketchy* and some are even malware.  `romtool` is simple and open-source -
+you know exactly what you're getting; no unwelcome suprises here.
