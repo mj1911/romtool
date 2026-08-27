@@ -58,13 +58,15 @@ don't fill a complete row.  Use with caution.
     romtool compare path [path ...] [--recursive]
     romtool compare dumps/ --recursive
     
-    duplicates:
-      dumps/copy_of_low.bin: duplicate of dumps/low.bin (md5=25F9E79432...)
+    comparing 3 file(s) under dumps/
     
-    unique:
-      dumps/high.bin (md5=9F86D081884C7D659A2FEAA0C55AD015)
+    duplicates (1 groups):
+      Group 1 (2 files, md5=25F9E79432...):
+        copy_of_low.bin
+        low.bin
     
-    scanned 3 file(s): 1 duplicate group(s), 1 unique
+    unique (1 files):
+      high.bin (md5=9F86D081884C7D659A2FEAA0C55AD015)
 
 Every input and output file gets a byte-wise-sum, CRC16, CRC32, and MD5
 checksum printed so you can verify results or compare against
