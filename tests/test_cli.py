@@ -653,13 +653,74 @@ def test_cmd_compare_reports_duplicates_and_unique(tmp_path, capsys):
     _, _, _, same_md5 = core.checksums(b"same")
     _, _, _, diff_md5 = core.checksums(b"different")
     captured = capsys.readouterr()
-    assert "duplicates:" in captured.out
-    assert f"  {b}: duplicate of {a} (md5={same_md5})" in captured.out
-    assert "unique:" in captured.out
-    assert f"  {c} (md5={diff_md5})" in captured.out
-    assert (
-        "scanned 3 file(s): 1 duplicate group(s), 1 unique" in captured.out
-    )
+    assert f"comparing 3 file(s) under {tmp_path}/" in captured.out
+    assert "duplicates (1 groups):" in captured.out
+    assert f"Group 1 (2 files, md5={same_md5}):" in captured.out
+    assert "    a.bin" in captured.out
+    assert "    b.bin" in captured.out
+    assert "unique (1 files):" in captured.out
+    assert f"  c.bin (md5={diff_md5})" in captured.out
+    assert "scanned" not in captured.out
+
+
+def test_cmd_compare_nested_subdirs_keep_their_own_subpath(tmp_path, capsys):
+    sub1 = tmp_path / "sub1"
+    sub2 = tmp_path / "sub2"
+    sub1.mkdir()
+    sub2.mkdir()
+    a = sub1 / "a.bin"
+    b = sub2 / "b.bin"
+    a.write_bytes(b"same")
+    b.write_bytes(b"same")
+
+    parser = build_parser()
+    args = parser.parse_args(["compare", str(a), str(b)])
+    exit_code = cmd_compare(args)
+
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    # Both files share tmp_path as an ancestor, so it's stripped, but
+    # each path still shows its own subdirectory (sub1/ or sub2/).
+    assert f"comparing 2 file(s) under {tmp_path}/" in captured.out
+    assert "    sub1/a.bin" in captured.out or "    sub1\\a.bin" in captured.out
+
+
+def test_cmd_compare_no_common_prefix_shows_full_paths_no_under(
+    tmp_path, capsys, monkeypatch
+):
+    # Relative filenames with no directory component share no common
+    # directory at all, so no " under ..." suffix should appear.
+    monkeypatch.chdir(tmp_path)
+    a = Path("a.bin")
+    b = Path("b.bin")
+    a.write_bytes(b"same")
+    b.write_bytes(b"same")
+
+    parser = build_parser()
+    args = parser.parse_args(["compare", "a.bin", "b.bin"])
+    exit_code = cmd_compare(args)
+
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    assert captured.out.startswith("comparing 2 file(s)\n")
+    assert "under" not in captured.out.splitlines()[0]
+    assert "    a.bin" in captured.out
+    assert "    b.bin" in captured.out
+
+
+def test_cmd_compare_single_file_strips_its_own_directory(tmp_path, capsys):
+    a = tmp_path / "a.bin"
+    a.write_bytes(b"data")
+
+    parser = build_parser()
+    args = parser.parse_args(["compare", str(a)])
+    exit_code = cmd_compare(args)
+
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    assert f"comparing 1 file(s) under {tmp_path}/" in captured.out
+    assert "unique (1 files):" in captured.out
+    assert "  a.bin (md5=" in captured.out
 
 
 def test_cmd_compare_all_unique_omits_duplicates_section(tmp_path, capsys):
@@ -674,11 +735,8 @@ def test_cmd_compare_all_unique_omits_duplicates_section(tmp_path, capsys):
 
     assert exit_code == 0
     captured = capsys.readouterr()
-    assert "duplicates:" not in captured.out
-    assert "unique:" in captured.out
-    assert (
-        "scanned 2 file(s): 0 duplicate group(s), 2 unique" in captured.out
-    )
+    assert "duplicates" not in captured.out
+    assert "unique (2 files):" in captured.out
 
 
 def test_cmd_compare_all_duplicate_omits_unique_section(tmp_path, capsys):
@@ -693,11 +751,8 @@ def test_cmd_compare_all_duplicate_omits_unique_section(tmp_path, capsys):
 
     assert exit_code == 0
     captured = capsys.readouterr()
-    assert "duplicates:" in captured.out
-    assert "unique:" not in captured.out
-    assert (
-        "scanned 2 file(s): 1 duplicate group(s), 0 unique" in captured.out
-    )
+    assert "duplicates (1 groups):" in captured.out
+    assert "unique" not in captured.out
 
 
 def test_cmd_compare_empty_folder_prints_zero_summary(tmp_path, capsys):
@@ -707,11 +762,7 @@ def test_cmd_compare_empty_folder_prints_zero_summary(tmp_path, capsys):
 
     assert exit_code == 0
     captured = capsys.readouterr()
-    assert "duplicates:" not in captured.out
-    assert "unique:" not in captured.out
-    assert (
-        "scanned 0 file(s): 0 duplicate group(s), 0 unique" in captured.out
-    )
+    assert captured.out.strip() == "comparing 0 file(s)"
 
 
 def test_cmd_compare_nonexistent_path_raises(tmp_path):
@@ -809,4 +860,4 @@ def test_main_compare_end_to_end(tmp_path, capsys):
 
     assert exit_code == 0
     captured = capsys.readouterr()
-    assert "duplicates:" in captured.out
+    assert "duplicates (1 groups):" in captured.out

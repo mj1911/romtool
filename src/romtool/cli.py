@@ -284,6 +284,10 @@ def _display_path(path: Path, prefix: Path | None) -> str:
 def cmd_compare(args: argparse.Namespace) -> int:
     files = _collect_files(args.paths, args.recursive)
 
+    if not files:
+        print("comparing 0 file(s)")
+        return 0
+
     hashes: dict[Path, str] = {}
     for path in files:
         data = _read_file(path)
@@ -291,25 +295,31 @@ def cmd_compare(args: argparse.Namespace) -> int:
         hashes[path] = md5_hex
 
     duplicate_groups, unique_paths = core.group_duplicates(hashes)
+    prefix = _common_prefix_dir(files)
+
+    header = f"comparing {len(files)} file(s)"
+    if prefix is not None:
+        header += f" under {prefix}/"
+    sections = [header]
 
     if duplicate_groups:
-        print("duplicates:")
-        for digest, paths in duplicate_groups.items():
-            canonical = paths[0]
-            for dup in paths[1:]:
-                print(f"  {dup}: duplicate of {canonical} (md5={digest})")
-        print()
+        lines = [f"duplicates ({len(duplicate_groups)} groups):"]
+        for i, (digest, paths) in enumerate(
+            duplicate_groups.items(), start=1
+        ):
+            lines.append(f"  Group {i} ({len(paths)} files, md5={digest}):")
+            lines.extend(f"    {_display_path(p, prefix)}" for p in paths)
+        sections.append("\n".join(lines))
 
     if unique_paths:
-        print("unique:")
-        for path in unique_paths:
-            print(f"  {path} (md5={hashes[path]})")
-        print()
+        lines = [f"unique ({len(unique_paths)} files):"]
+        lines.extend(
+            f"  {_display_path(p, prefix)} (md5={hashes[p]})"
+            for p in unique_paths
+        )
+        sections.append("\n".join(lines))
 
-    print(
-        f"scanned {len(files)} file(s): {len(duplicate_groups)} "
-        f"duplicate group(s), {len(unique_paths)} unique"
-    )
+    print("\n\n".join(sections))
     return 0
 
 
