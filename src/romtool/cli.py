@@ -57,6 +57,11 @@ class _MinLengthAction(argparse.Action):
         setattr(namespace, self.dest, values)
 
 
+# Unit size in bytes for each swap mode; swap exchanges adjacent pairs of
+# these, so the pair size is twice the unit.
+_SWAP_UNITS = {"bytes": 1, "words": 2, "dwords": 4, "qwords": 8}
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="romtool")
     parser.add_argument(
@@ -101,6 +106,16 @@ def build_parser() -> argparse.ArgumentParser:
     compare_parser.add_argument("paths", nargs="+", type=Path)
     compare_parser.add_argument(
         "--recursive", action="store_true", default=False
+    )
+
+    swap_parser = subparsers.add_parser(
+        "swap", help="Swap adjacent bytes/words/dwords/qwords within one file"
+    )
+    swap_parser.add_argument("mode", choices=_SWAP_UNITS)
+    swap_parser.add_argument("input", type=Path)
+    swap_parser.add_argument("-o", "--output", type=Path, default=None)
+    swap_parser.add_argument(
+        "--allow-truncate", action="store_true", default=False
     )
 
     return parser
@@ -247,6 +262,29 @@ def cmd_split(args: argparse.Namespace) -> int:
     return 0
 
 
+def _swap_output_path(args: argparse.Namespace) -> Path:
+    if args.output is not None:
+        return args.output
+    # Spec: auto-generated name is always "<stem>.<mode>.bin", regardless
+    # of the input file's own extension (same convention as split).
+    return args.input.parent / f"{args.input.stem}.{args.mode}.bin"
+
+
+def cmd_swap(args: argparse.Namespace) -> int:
+    unit = _SWAP_UNITS[args.mode]
+
+    data = _read_file(args.input)
+    # Printed before truncation: this checksum is of the full on-disk
+    # file, not the truncated data used below.
+    _print_checksum_line(args.input, data)
+
+    output = _swap_output_path(args)
+    swapped = core.swap_pairs(data, unit)
+    _write_output(output, swapped)
+    _print_checksum_line(output, swapped)
+    return 0
+
+
 def _common_prefix_dir(paths: list[Path]) -> Path | None:
     """Longest common ancestor directory shared by every path in
     `paths`, computed from each path's as-given string form (not
@@ -332,8 +370,10 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_combine(args)
         elif args.command == "split":
             return cmd_split(args)
-        else:
+        elif args.command == "compare":
             return cmd_compare(args)
+        else:
+            return cmd_swap(args)
     except RomToolError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1

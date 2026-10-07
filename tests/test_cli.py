@@ -13,6 +13,7 @@ from romtool.cli import (
     cmd_combine,
     cmd_compare,
     cmd_split,
+    cmd_swap,
 )
 
 
@@ -861,3 +862,145 @@ def test_main_compare_end_to_end(tmp_path, capsys):
     assert exit_code == 0
     captured = capsys.readouterr()
     assert "duplicates (1 groups):" in captured.out
+
+
+def test_parser_swap_basic():
+    parser = build_parser()
+    args = parser.parse_args(["swap", "bytes", "in.bin"])
+    assert args.command == "swap"
+    assert args.mode == "bytes"
+    assert str(args.input) == "in.bin"
+    assert args.output is None
+    assert args.allow_truncate is False
+
+
+def test_parser_swap_with_output_and_allow_truncate():
+    parser = build_parser()
+    args = parser.parse_args(
+        ["swap", "qwords", "in.bin", "-o", "out.bin", "--allow-truncate"]
+    )
+    assert args.mode == "qwords"
+    assert str(args.output) == "out.bin"
+    assert args.allow_truncate is True
+
+
+@pytest.mark.parametrize("mode", ["bytes", "words", "dwords", "qwords"])
+def test_parser_swap_accepts_every_mode(mode):
+    parser = build_parser()
+    args = parser.parse_args(["swap", mode, "in.bin"])
+    assert args.mode == mode
+
+
+def test_parser_swap_invalid_mode_rejected(capsys):
+    parser = build_parser()
+    with pytest.raises(SystemExit) as exc_info:
+        parser.parse_args(["swap", "nibbles", "in.bin"])
+    assert exc_info.value.code == 2
+
+
+def test_parser_swap_requires_input(capsys):
+    parser = build_parser()
+    with pytest.raises(SystemExit) as exc_info:
+        parser.parse_args(["swap", "bytes"])
+    assert exc_info.value.code == 2
+
+
+def test_cmd_swap_auto_names_output_and_swaps(tmp_path):
+    src = tmp_path / "Game.bin"
+    src.write_bytes(bytes.fromhex("0011223344556677"))
+
+    parser = build_parser()
+    args = parser.parse_args(["swap", "bytes", str(src)])
+    exit_code = cmd_swap(args)
+
+    assert exit_code == 0
+    out = tmp_path / "Game.bytes.bin"
+    assert out.read_bytes() == bytes.fromhex("1100332255447766")
+    # The input is never modified.
+    assert src.read_bytes() == bytes.fromhex("0011223344556677")
+
+
+def test_cmd_swap_auto_name_always_uses_bin_suffix(tmp_path):
+    # Spec: auto-generated name is always "<stem>.<mode>.bin", regardless
+    # of the input file's own extension.
+    src = tmp_path / "Game.rom"
+    src.write_bytes(bytes.fromhex("0011223344556677"))
+
+    parser = build_parser()
+    args = parser.parse_args(["swap", "dwords", str(src)])
+    assert cmd_swap(args) == 0
+
+    out = tmp_path / "Game.dwords.bin"
+    assert out.read_bytes() == bytes.fromhex("4455667700112233")
+
+
+def test_cmd_swap_with_output_writes_to_given_path(tmp_path):
+    src = tmp_path / "in.bin"
+    dest = tmp_path / "fixed.rom"
+    src.write_bytes(bytes.fromhex("0011223344556677"))
+
+    parser = build_parser()
+    args = parser.parse_args(["swap", "words", str(src), "-o", str(dest)])
+    assert cmd_swap(args) == 0
+
+    assert dest.read_bytes() == bytes.fromhex("2233001166774455")
+    assert not (tmp_path / "in.words.bin").exists()
+
+
+@pytest.mark.parametrize(
+    "mode,unit", [("bytes", 1), ("words", 2), ("dwords", 4), ("qwords", 8)]
+)
+def test_cmd_swap_every_mode_matches_core(tmp_path, mode, unit):
+    data = bytes(range(32))
+    src = tmp_path / "in.bin"
+    src.write_bytes(data)
+
+    parser = build_parser()
+    args = parser.parse_args(["swap", mode, str(src)])
+    assert cmd_swap(args) == 0
+
+    out = tmp_path / f"in.{mode}.bin"
+    assert out.read_bytes() == core.swap_pairs(data, unit)
+
+
+def test_cmd_swap_prints_input_and_output_checksums(tmp_path, capsys):
+    src = tmp_path / "in.bin"
+    src.write_bytes(bytes.fromhex("0011223344556677"))
+
+    parser = build_parser()
+    args = parser.parse_args(["swap", "bytes", str(src)])
+    assert cmd_swap(args) == 0
+
+    out = tmp_path / "in.bytes.bin"
+    captured = capsys.readouterr()
+    for path in (src, out):
+        sum_hex, crc16_hex, crc32_hex, md5_hex = core.checksums(
+            path.read_bytes()
+        )
+        assert (
+            f"{path}: sum={sum_hex} crc16={crc16_hex} crc32={crc32_hex} "
+            f"md5={md5_hex}" in captured.out
+        )
+
+
+def test_main_swap_end_to_end(tmp_path):
+    src = tmp_path / "in.bin"
+    src.write_bytes(b"\x01\x02\x03\x04")
+
+    exit_code = main(["swap", "bytes", str(src)])
+
+    assert exit_code == 0
+    assert (tmp_path / "in.bytes.bin").read_bytes() == b"\x02\x01\x04\x03"
+
+
+def test_main_swap_twice_roundtrips(tmp_path):
+    src = tmp_path / "in.bin"
+    once = tmp_path / "once.bin"
+    twice = tmp_path / "twice.bin"
+    src.write_bytes(bytes(range(64)))
+
+    assert main(["swap", "dwords", str(src), "-o", str(once)]) == 0
+    assert main(["swap", "dwords", str(once), "-o", str(twice)]) == 0
+
+    assert twice.read_bytes() == src.read_bytes()
+    assert once.read_bytes() != src.read_bytes()
