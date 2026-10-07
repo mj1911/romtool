@@ -177,3 +177,52 @@ def test_group_duplicates_single_occurrence_is_not_a_duplicate():
     duplicate_groups, unique_paths = core.group_duplicates(hashes)
     assert duplicate_groups == {}
     assert unique_paths == [Path("only.bin")]
+
+
+_SWAP_SAMPLE = bytes.fromhex("0011223344556677")
+
+
+@pytest.mark.parametrize(
+    "unit,expected_hex",
+    [
+        (1, "1100332255447766"),
+        (2, "2233001166774455"),
+        (4, "4455667700112233"),
+    ],
+)
+def test_swap_pairs_known_vectors(unit, expected_hex):
+    assert core.swap_pairs(_SWAP_SAMPLE, unit) == bytes.fromhex(expected_hex)
+
+
+def test_swap_pairs_qwords_swaps_eight_byte_halves():
+    data = bytes(range(16))
+    expected = bytes(range(8, 16)) + bytes(range(0, 8))
+    assert core.swap_pairs(data, 8) == expected
+
+
+def test_swap_pairs_multiple_pairs_each_swapped_independently():
+    data = bytes.fromhex("AABBCCDD" "11223344")
+    assert core.swap_pairs(data, 2) == bytes.fromhex("CCDDAABB" "33441122")
+
+
+@pytest.mark.parametrize("unit", [1, 2, 4, 8])
+def test_swap_pairs_twice_is_identity(unit):
+    rng = random.Random(unit)
+    data = bytes(rng.randrange(256) for _ in range(2 * unit * 10))
+    assert core.swap_pairs(core.swap_pairs(data, unit), unit) == data
+
+
+@pytest.mark.parametrize("unit", [1, 2, 4, 8])
+def test_swap_pairs_empty_returns_empty(unit):
+    assert core.swap_pairs(b"", unit) == b""
+
+
+@pytest.mark.parametrize("unit,length", [(1, 3), (2, 6), (4, 4), (8, 24)])
+def test_swap_pairs_length_not_multiple_of_pair_raises(unit, length):
+    with pytest.raises(ValueError):
+        core.swap_pairs(bytes(length), unit)
+
+
+def test_swap_pairs_unit_below_one_raises():
+    with pytest.raises(ValueError):
+        core.swap_pairs(b"\x00\x01", 0)

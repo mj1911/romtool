@@ -50,6 +50,25 @@ def deinterleave(data: bytes, n: int) -> list[bytes]:
     return [data[j::n] for j in range(n)]
 
 
+def swap_pairs(data: bytes, unit: int) -> bytes:
+    """Swap each adjacent pair of unit-sized chunks: unit=1 turns
+    00 11 22 33 into 11 00 33 22, unit=2 turns it into 22 33 00 11.
+    len(data) must already be a multiple of 2 * unit — truncation is
+    the caller's responsibility."""
+    if unit < 1:
+        raise ValueError(f"unit must be >= 1, got {unit}")
+    pair = 2 * unit
+    if len(data) % pair != 0:
+        raise ValueError(
+            f"data length {len(data)} is not a multiple of {pair}"
+        )
+    out = bytearray(len(data))
+    for k in range(unit):
+        out[k::pair] = data[unit + k::pair]
+        out[unit + k::pair] = data[k::pair]
+    return bytes(out)
+
+
 def checksums(data: bytes) -> tuple[str, str, str, str]:
     """Returns (sum_hex, crc16_hex, crc32_hex, md5_hex) for the given
     bytes, all upper-case.  sum_hex is the plain sum of byte
