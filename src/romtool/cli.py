@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 
 from romtool import __version__, core
@@ -57,9 +59,10 @@ class _MinLengthAction(argparse.Action):
         setattr(namespace, self.dest, values)
 
 
-# Unit size in bytes for each swap mode; swap exchanges adjacent pairs of
-# these, so the pair size is twice the unit.
-_SWAP_UNITS = {"bytes": 1, "words": 2, "dwords": 4, "qwords": 8}
+# Unit size in bytes for each swap/endian mode.  swap exchanges adjacent
+# pairs of units (block = 2 * unit); endian reverses within each unit
+# (block = unit; for "bytes" it reverses the bits of each byte).
+_UNITS = {"bytes": 1, "words": 2, "dwords": 4, "qwords": 8}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -111,7 +114,7 @@ def build_parser() -> argparse.ArgumentParser:
     swap_parser = subparsers.add_parser(
         "swap", help="Swap adjacent bytes/words/dwords/qwords within one file"
     )
-    swap_parser.add_argument("mode", choices=_SWAP_UNITS)
+    swap_parser.add_argument("mode", choices=_UNITS)
     swap_parser.add_argument("input", type=Path)
     swap_parser.add_argument("-o", "--output", type=Path, default=None)
     swap_parser.add_argument(
@@ -262,59 +265,77 @@ def cmd_split(args: argparse.Namespace) -> int:
     return 0
 
 
-def _swap_output_path(args: argparse.Namespace) -> Path:
+def _transform_output_path(args: argparse.Namespace) -> Path:
     if args.output is not None:
         return args.output
-    # Spec: auto-generated name is always "<stem>.<mode>.bin", regardless
-    # of the input file's own extension (same convention as split).
-    return args.input.parent / f"{args.input.stem}.{args.mode}.bin"
+    # Spec: auto-generated name is always "<stem>.<command>-<mode>.bin",
+    # regardless of the input file's own extension (same convention as
+    # split); the command prefix keeps swap and endian outputs apart.
+    return (
+        args.input.parent
+        / f"{args.input.stem}.{args.command}-{args.mode}.bin"
+    )
 
 
-def cmd_swap(args: argparse.Namespace) -> int:
-    unit = _SWAP_UNITS[args.mode]
-    pair = 2 * unit
-
+def _run_block_transform(
+    args: argparse.Namespace,
+    block: int,
+    noun: str,
+    verb: str,
+    transform: Callable[[bytes], bytes],
+) -> int:
+    """Shared flow for swap and endian: read and checksum the input,
+    check its size against block (the bytes each step of transform works
+    on, called a "<block>-byte <noun>" in messages), truncate if allowed,
+    then write transform(data) and checksum it."""
     data = _read_file(args.input)
     # Printed before truncation: this checksum is of the full on-disk
     # file, not the truncated data used below.
     _print_checksum_line(args.input, data)
 
     if not data:
-        raise RomToolError(f"{args.input} is empty; nothing to swap")
-    if len(data) < pair:
+        raise RomToolError(f"{args.input} is empty; nothing to {verb}")
+    if len(data) < block:
         # Checked before the multiple-of test: --allow-truncate can't help
-        # here, since truncating would leave nothing to swap.
+        # here, since truncating would leave nothing to work on.
         raise RomToolError(
             f"{args.input} has size {len(data)}, smaller than one "
-            f"{pair}-byte pair; nothing to swap"
+            f"{block}-byte {noun}; nothing to {verb}"
         )
-    remainder = len(data) % pair
+    remainder = len(data) % block
     if remainder != 0:
         if not args.allow_truncate:
             raise RomToolError(
                 f"{args.input} has size {len(data)}, not a multiple of "
-                f"{pair} ({args.mode} swap works on {pair}-byte pairs; "
-                f"{remainder} trailing bytes); use --allow-truncate to "
-                "drop them, or fix the input"
+                f"{block} ({args.mode} {args.command} works on "
+                f"{block}-byte {noun}s; {remainder} trailing bytes); use "
+                "--allow-truncate to drop them, or fix the input"
             )
         print(
             f"warning: truncating {remainder} trailing byte(s) from "
-            f"{args.input} to make its size a multiple of {pair}",
+            f"{args.input} to make its size a multiple of {block}",
             file=sys.stderr,
         )
         data = data[: len(data) - remainder]
 
-    output = _swap_output_path(args)
+    output = _transform_output_path(args)
     if output.resolve() == args.input.resolve():
         raise RomToolError(
             f"output {output} is the same file as the input; choose a "
             "different -o"
         )
 
-    swapped = core.swap_pairs(data, unit)
-    _write_output(output, swapped)
-    _print_checksum_line(output, swapped)
+    result = transform(data)
+    _write_output(output, result)
+    _print_checksum_line(output, result)
     return 0
+
+
+def cmd_swap(args: argparse.Namespace) -> int:
+    unit = _UNITS[args.mode]
+    return _run_block_transform(
+        args, 2 * unit, "pair", "swap", partial(core.swap_pairs, unit=unit)
+    )
 
 
 def _common_prefix_dir(paths: list[Path]) -> Path | None:
@@ -393,19 +414,21 @@ def cmd_compare(args: argparse.Namespace) -> int:
     return 0
 
 
+_COMMANDS = {
+    "combine": cmd_combine,
+    "split": cmd_split,
+    "compare": cmd_compare,
+    "swap": cmd_swap,
+}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
     try:
-        if args.command == "combine":
-            return cmd_combine(args)
-        elif args.command == "split":
-            return cmd_split(args)
-        elif args.command == "compare":
-            return cmd_compare(args)
-        else:
-            return cmd_swap(args)
+        # Subparsers are required=True, so args.command is always a key.
+        return _COMMANDS[args.command](args)
     except RomToolError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1

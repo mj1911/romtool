@@ -914,15 +914,15 @@ def test_cmd_swap_auto_names_output_and_swaps(tmp_path):
     exit_code = cmd_swap(args)
 
     assert exit_code == 0
-    out = tmp_path / "Game.bytes.bin"
+    out = tmp_path / "Game.swap-bytes.bin"
     assert out.read_bytes() == bytes.fromhex("1100332255447766")
     # The input is never modified.
     assert src.read_bytes() == bytes.fromhex("0011223344556677")
 
 
 def test_cmd_swap_auto_name_always_uses_bin_suffix(tmp_path):
-    # Spec: auto-generated name is always "<stem>.<mode>.bin", regardless
-    # of the input file's own extension.
+    # Spec: auto-generated name is always "<stem>.swap-<mode>.bin",
+    # regardless of the input file's own extension.
     src = tmp_path / "Game.rom"
     src.write_bytes(bytes.fromhex("0011223344556677"))
 
@@ -930,7 +930,7 @@ def test_cmd_swap_auto_name_always_uses_bin_suffix(tmp_path):
     args = parser.parse_args(["swap", "dwords", str(src)])
     assert cmd_swap(args) == 0
 
-    out = tmp_path / "Game.dwords.bin"
+    out = tmp_path / "Game.swap-dwords.bin"
     assert out.read_bytes() == bytes.fromhex("4455667700112233")
 
 
@@ -944,7 +944,7 @@ def test_cmd_swap_with_output_writes_to_given_path(tmp_path):
     assert cmd_swap(args) == 0
 
     assert dest.read_bytes() == bytes.fromhex("2233001166774455")
-    assert not (tmp_path / "in.words.bin").exists()
+    assert not (tmp_path / "in.swap-words.bin").exists()
 
 
 @pytest.mark.parametrize(
@@ -959,7 +959,7 @@ def test_cmd_swap_every_mode_matches_core(tmp_path, mode, unit):
     args = parser.parse_args(["swap", mode, str(src)])
     assert cmd_swap(args) == 0
 
-    out = tmp_path / f"in.{mode}.bin"
+    out = tmp_path / f"in.swap-{mode}.bin"
     assert out.read_bytes() == core.swap_pairs(data, unit)
 
 
@@ -971,7 +971,7 @@ def test_cmd_swap_prints_input_and_output_checksums(tmp_path, capsys):
     args = parser.parse_args(["swap", "bytes", str(src)])
     assert cmd_swap(args) == 0
 
-    out = tmp_path / "in.bytes.bin"
+    out = tmp_path / "in.swap-bytes.bin"
     captured = capsys.readouterr()
     for path in (src, out):
         sum_hex, crc16_hex, crc32_hex, md5_hex = core.checksums(
@@ -990,7 +990,7 @@ def test_main_swap_end_to_end(tmp_path):
     exit_code = main(["swap", "bytes", str(src)])
 
     assert exit_code == 0
-    assert (tmp_path / "in.bytes.bin").read_bytes() == b"\x02\x01\x04\x03"
+    assert (tmp_path / "in.swap-bytes.bin").read_bytes() == b"\x02\x01\x04\x03"
 
 
 def test_main_swap_twice_roundtrips(tmp_path):
@@ -1015,7 +1015,7 @@ def test_cmd_swap_empty_input_raises_and_writes_nothing(tmp_path):
 
     with pytest.raises(RomToolError, match="is empty; nothing to swap"):
         cmd_swap(args)
-    assert not (tmp_path / "empty.bytes.bin").exists()
+    assert not (tmp_path / "empty.swap-bytes.bin").exists()
 
 
 @pytest.mark.parametrize("allow_truncate", [False, True])
@@ -1033,7 +1033,7 @@ def test_cmd_swap_smaller_than_one_pair_raises(tmp_path, allow_truncate):
         RomToolError, match="smaller than one 4-byte pair; nothing to swap"
     ):
         cmd_swap(args)
-    assert not (tmp_path / "tiny.words.bin").exists()
+    assert not (tmp_path / "tiny.swap-words.bin").exists()
 
 
 def test_cmd_swap_non_multiple_without_allow_truncate_raises(tmp_path):
@@ -1049,7 +1049,7 @@ def test_cmd_swap_non_multiple_without_allow_truncate_raises(tmp_path):
     assert "has size 10, not a multiple of 8" in message
     assert "2 trailing bytes" in message
     assert "--allow-truncate" in message
-    assert not (tmp_path / "odd.dwords.bin").exists()
+    assert not (tmp_path / "odd.swap-dwords.bin").exists()
 
 
 def test_cmd_swap_non_multiple_still_prints_input_checksum(tmp_path, capsys):
@@ -1078,7 +1078,7 @@ def test_cmd_swap_allow_truncate_drops_tail_and_warns(tmp_path, capsys):
     args = parser.parse_args(["swap", "bytes", str(src), "--allow-truncate"])
     assert cmd_swap(args) == 0
 
-    out = tmp_path / "odd.bytes.bin"
+    out = tmp_path / "odd.swap-bytes.bin"
     assert out.read_bytes() == bytes.fromhex("11003322")
 
     captured = capsys.readouterr()
