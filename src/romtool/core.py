@@ -69,6 +69,33 @@ def swap_pairs(data: bytes, unit: int) -> bytes:
     return bytes(out)
 
 
+# _BIT_REVERSE_TABLE[b] is b with its 8 bits in reverse order (D7..D0
+# becomes D0..D7), e.g. 0x01 -> 0x80, 0x12 -> 0x48.
+_BIT_REVERSE_TABLE = bytes(int(f"{i:08b}"[::-1], 2) for i in range(256))
+
+
+def reverse_bits(data: bytes) -> bytes:
+    """Reverse the bit order within every byte: 01 12 F0 80 becomes
+    80 48 0F 01.  Works on any length."""
+    return data.translate(_BIT_REVERSE_TABLE)
+
+
+def reverse_units(data: bytes, unit: int) -> bytes:
+    """Reverse the byte order within each unit-sized chunk: unit=4 turns
+    00 11 22 33 into 33 22 11 00.  len(data) must already be a multiple
+    of unit — truncation is the caller's responsibility."""
+    if unit < 1:
+        raise ValueError(f"unit must be >= 1, got {unit}")
+    if len(data) % unit != 0:
+        raise ValueError(
+            f"data length {len(data)} is not a multiple of {unit}"
+        )
+    out = bytearray(len(data))
+    for k in range(unit):
+        out[k::unit] = data[unit - 1 - k::unit]
+    return bytes(out)
+
+
 def checksums(data: bytes) -> tuple[str, str, str, str]:
     """Returns (sum_hex, crc16_hex, crc32_hex, md5_hex) for the given
     bytes, all upper-case.  sum_hex is the plain sum of byte

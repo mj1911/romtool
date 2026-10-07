@@ -226,3 +226,73 @@ def test_swap_pairs_length_not_multiple_of_pair_raises(unit, length):
 def test_swap_pairs_unit_below_one_raises():
     with pytest.raises(ValueError):
         core.swap_pairs(b"\x00\x01", 0)
+
+
+def test_reverse_bits_known_values():
+    assert core.reverse_bits(bytes.fromhex("0112F080")) == bytes.fromhex(
+        "80480F01"
+    )
+
+
+def test_reverse_bits_palindromic_values_unchanged():
+    data = bytes.fromhex("00FF8118")
+    assert core.reverse_bits(data) == data
+
+
+def test_reverse_bits_matches_bitwise_definition_for_every_value():
+    for value in range(256):
+        expected = sum(((value >> i) & 1) << (7 - i) for i in range(8))
+        assert core.reverse_bits(bytes([value])) == bytes([expected])
+
+
+def test_reverse_bits_twice_is_identity():
+    data = bytes(range(256))
+    assert core.reverse_bits(core.reverse_bits(data)) == data
+
+
+def test_reverse_bits_empty_returns_empty():
+    assert core.reverse_bits(b"") == b""
+
+
+_ENDIAN_SAMPLE = bytes.fromhex("0011223344556677")
+
+
+@pytest.mark.parametrize(
+    "unit,expected_hex",
+    [
+        (2, "1100332255447766"),
+        (4, "3322110077665544"),
+        (8, "7766554433221100"),
+    ],
+)
+def test_reverse_units_known_vectors(unit, expected_hex):
+    assert core.reverse_units(_ENDIAN_SAMPLE, unit) == bytes.fromhex(
+        expected_hex
+    )
+
+
+def test_reverse_units_unit_one_is_identity():
+    assert core.reverse_units(_ENDIAN_SAMPLE, 1) == _ENDIAN_SAMPLE
+
+
+@pytest.mark.parametrize("unit", [1, 2, 4, 8])
+def test_reverse_units_twice_is_identity(unit):
+    rng = random.Random(100 + unit)
+    data = bytes(rng.randrange(256) for _ in range(unit * 10))
+    assert core.reverse_units(core.reverse_units(data, unit), unit) == data
+
+
+@pytest.mark.parametrize("unit", [1, 2, 4, 8])
+def test_reverse_units_empty_returns_empty(unit):
+    assert core.reverse_units(b"", unit) == b""
+
+
+@pytest.mark.parametrize("unit,length", [(2, 3), (4, 6), (8, 12)])
+def test_reverse_units_length_not_multiple_of_unit_raises(unit, length):
+    with pytest.raises(ValueError):
+        core.reverse_units(bytes(length), unit)
+
+
+def test_reverse_units_unit_below_one_raises():
+    with pytest.raises(ValueError):
+        core.reverse_units(b"\x00\x01", 0)
