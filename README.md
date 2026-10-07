@@ -3,16 +3,16 @@
 # romtool
 
 `romtool` interleaves (combines) and de-interleaves (splits) binary
-ROM/EPROM images, byte-wise, across any number of files.  It also can show
-duplicate/unique files.
+ROM/EPROM images, byte-wise, across any number of files.  It also can now
+*swap byte/word/dword/qword order*, *change byte/word/dword/qword endianness*,
+and *show duplicate/unique files*.
 
-These are some classic problems when working with retro hardware which spreads a
-single logical ROM across multiple physical chips — for example a 16-bit
-system that stores even bytes in one EPROM and odd bytes in another
-("Low"/"High" halves), or some obscure board that uses 4 or even 8 chips.
-`romtool` reassembles those dumps into a single linear
-stream for analysis, or can split a stream back into chip-sized blocks
-for burning to physical hardware.
+These are some classic problems when working with retro hardware — for
+example a 16-bit system which stores even bytes in one EPROM and odd bytes
+in another ("Low"/"High" halves), or some obscure board that uses 4 or even 8
+chips. `romtool` reassembles those dumps into a single linear stream for 
+analysis, or can split a stream back into chip-sized blocks for burning to
+physical hardware, and other manipulations.
 
 It works on any binary file, not just ROM dumps — anything that can benefit
 from byte-wise interleaving/de-interleaving. `romtool` should run on Windows,
@@ -29,25 +29,25 @@ checksum printed so you can verify it against known-good data:
   time (byte 0 of file 1, byte 0 of file 2, ..., byte 1 of file 1, byte 1
   of file 2, ...) into a single output file.
   
-Input files for `combine` are normally required to be the same length;
-`--pad-byte` relaxes that by padding shorter files up to the longest
-one.  Missing bytes are filled in with the specified pad byte value.
+  Input files for `combine` are normally required to be the same length;
+  `--pad-byte` relaxes that by padding shorter files up to the longest
+  one.  Missing bytes are filled in with the specified pad byte value.
 
-    romtool combine file1 file2 filen -o outputfile [--pad-byte 0xnn]
-    romtool combine 01.bin 02.bin 03.bin 04.bin -o big.bin
-    romtool combine LOW.bin HIGH.bin -o Combined.bin --pad-byte 0xFF
+      romtool combine file1 file2 filen -o outputfile [--pad-byte 0xnn]
+      romtool combine 01.bin 02.bin 03.bin 04.bin -o big.bin
+      romtool combine LOW.bin HIGH.bin -o Combined.bin --pad-byte 0xFF
 
 - **`split`** — reads one input file and de-interleaves it into N equal
   output files, reversing what `combine` does.
 
-Input size for `split` is normally required to be evenly divisible by
-N; `--allow-truncate` relaxes that by dropping trailing bytes that
-don't fill a complete row; use with caution.
+  Input size for `split` is normally required to be evenly divisible by
+  N; `--allow-truncate` relaxes that by dropping trailing bytes that
+  don't fill a complete row; use with caution.
 
-    romtool split inputfile [-n number]|[-o out1 out2 outn] [--allow-truncate]
-    romtool split Combined.bin -o LOW.bin HIGH.bin
-    romtool split Big.bin -n 4 --allow-truncate
-    # writes Big.part0.bin, Big.part1.bin, Big.part2.bin, Big.part3.bin
+      romtool split inputfile [-n number]|[-o out1 out2 outn] [--allow-truncate]
+      romtool split Combined.bin -o LOW.bin HIGH.bin
+      romtool split Big.bin -n 4 --allow-truncate
+      # writes Big.part0.bin, Big.part1.bin, Big.part2.bin, Big.part3.bin
   
 - `combine` and `split` are exact inverses of each other (given
   same-sized inputs and no truncation), so round-tripping a set of files
@@ -55,46 +55,75 @@ don't fill a complete row; use with caution.
 
 - **`compare`** — reads a set of files/folders, MD5-hashes every file
   found, and reports which files are byte-identical duplicates, and which are 
-  unique.  Handy for de-duping a growing or messy ROM collection.  
-  `--recursive` makes folder arguments descend into sub-directories 
-  (off by default.)
+  unique.  Handy for de-duping a growing or messy ROM collection.
 
-    romtool compare path [path ...] [--recursive]
-    romtool compare D:\dumps --recursive
-    
-    comparing 3 file(s) under dumps/
-    
-    duplicates (1 groups):
-      Group 1 (2 files, md5=25F9E79432...):
-        copy_of_low.bin
-        low.bin
-    
-    unique (1 files):
-      high.bin (md5=9F86D081884C7D659A2FEAA0C55AD015)
-    
+  `--recursive` makes folder arguments descend into sub-directories (off by default).
+
+      romtool compare path [path ...] [--recursive]
+      romtool compare D:\dumps --recursive
+      
+      comparing 3 file(s) under dumps/
+      
+      duplicates (1 groups):
+        Group 1 (2 files, md5=25F9E79432...):
+          copy_of_low.bin
+          low.bin
+      
+      unique (1 files):
+        high.bin (md5=9F86D081884C7D659A2FEAA0C55AD015)
+
 - **`swap`** — reads one file and swaps each adjacent pair of bytes,
   words (2 bytes), dwords (4 bytes), or qwords (8 bytes), writing the
   result to a new file.  Handy for fixing "byte-swapped" dumps or ones
   whose words were read in the wrong order.  Swapping twice with the same
-  mode gives back the original file.
+  mode returns the original file.
 
-For example, given 8 bytes of input:
+  For example, given 8 bytes of input:
 
-    00 11 22 33 44 55 66 77    original
-    11 00 33 22 55 44 77 66    swap bytes
-    22 33 00 11 66 77 44 55    swap words
-    44 55 66 77 00 11 22 33    swap dwords
+      00 11 22 33 44 55 66 77    original
+      11 00 33 22 55 44 77 66    swap bytes
+      22 33 00 11 66 77 44 55    swap words
+      44 55 66 77 00 11 22 33    swap dwords
 
-Without `-o` the output is written next to the input as
-`<name>.<mode>.bin`; the input file is never overwritten.  Input size
-must be a multiple of the pair size (2, 4, 8, or 16 bytes);
-`--allow-truncate` relaxes that by dropping trailing bytes that don't
-fill a complete pair; use with caution.  Empty files are rejected.
+  Without `-o` the output is written next to the input as
+  `<name>.swap-<mode>.bin`; the input file is never overwritten.  Input size
+  must be a multiple of the pair size (2, 4, 8, or 16 bytes);
+  `--allow-truncate` relaxes that by dropping trailing bytes that don't
+  fill a complete pair.  Empty files are rejected.
 
-    romtool swap {bytes,words,dwords,qwords} inputfile [-o outputfile] [--allow-truncate]
-    romtool swap bytes Game.bin
-    # writes Game.bytes.bin
-    romtool swap dwords Game.rom -o Game.fixed.rom
+      romtool swap {bytes,words,dwords,qwords} inputfile [-o outputfile] [--allow-truncate]
+      romtool swap bytes Game.bin
+      # writes Game.swap-bytes.bin
+      romtool swap dwords Game.rom -o Game.fixed.rom
+
+- **`endian`** — reads one file and reverses the order *within* each
+  unit: the 8 bits of each byte, or the bytes of each word (2 bytes),
+  dword (4 bytes), or qword (8 bytes), writing the result to a new file.
+  Handy for converting data between big- and little-endian, or for dumps
+  from a board whose data lines are wired backwards (D0-D7 reversed).
+  Reversing twice with the same mode returns the original file.
+
+  For example:
+
+      01 12 F0 80                original
+      80 48 0F 01                endian bytes (bits reversed)
+
+      00 11 22 33 44 55 66 77    original
+      11 00 33 22 55 44 77 66    endian words
+      33 22 11 00 77 66 55 44    endian dwords
+      77 66 55 44 33 22 11 00    endian qwords
+
+  `endian words` gives the same result as `swap bytes`.  Without `-o` the
+  output is written next to the input as `<name>.endian-<mode>.bin`; the
+  input file is never overwritten.  Input size must be a multiple of the
+  unit size (2, 4, or 8 bytes; any size works for `bytes`);
+  `--allow-truncate` relaxes that by dropping trailing bytes that don't
+  fill a complete unit.  Empty files are rejected.
+
+      romtool endian {bytes,words,dwords,qwords} inputfile [-o outputfile] [--allow-truncate]
+      romtool endian dwords Game.bin
+      # writes Game.endian-dwords.bin
+      romtool endian bytes Backwards-bus.bin -o Fixed.bin
 
 ## Install and run (app only, no test framework)
 
@@ -118,7 +147,7 @@ uninstall.
 
 ## Requirements
 
-Python 3.9+. No third-party runtime dependencies.
+Python 3.9+. No third-party run-time dependencies.
 
 ## End-to-End Test of all features
 
@@ -149,15 +178,17 @@ table.
 
 ## Versions
 
+    0.1.3 - Added byte/word/dword/qword swap and endianness commands.
     0.1.2 - Reworked compare output to be more readable.
     0.1.1 - Added compare command, showing which files are duplicates/unique.
     0.1.0 - Initial release; split and combine commands.
 
 ## Why?
 
-Because I wanted a tool to combine low and high files to view the full data,
-and being able to identify duplicate ROMs is very handy.
+Because I wanted a tool to combine low and high files to view the full data.
+Being able to identify duplicate ROMs is very handy too, and so is the
+ability to swap the byte orders.
 
-Looking on the web, such "binary merge" tools are common, but *all are
-sketchy* and some are even malware.  `romtool` is simple and open-source -
-you know exactly what you're getting; no unwelcome suprises here.
+Looking on the web, such binary tools are common, but *all are sketchy*
+and many are even malware.  `romtool` is simple and open-source -
+you know exactly what you're getting here; no unwelcome surprises.
