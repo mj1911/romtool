@@ -1004,3 +1004,125 @@ def test_main_swap_twice_roundtrips(tmp_path):
 
     assert twice.read_bytes() == src.read_bytes()
     assert once.read_bytes() != src.read_bytes()
+
+
+def test_cmd_swap_empty_input_raises_and_writes_nothing(tmp_path):
+    src = tmp_path / "empty.bin"
+    src.write_bytes(b"")
+
+    parser = build_parser()
+    args = parser.parse_args(["swap", "bytes", str(src)])
+
+    with pytest.raises(RomToolError, match="is empty; nothing to swap"):
+        cmd_swap(args)
+    assert not (tmp_path / "empty.bytes.bin").exists()
+
+
+@pytest.mark.parametrize("allow_truncate", [False, True])
+def test_cmd_swap_smaller_than_one_pair_raises(tmp_path, allow_truncate):
+    src = tmp_path / "tiny.bin"
+    src.write_bytes(b"\x01\x02\x03")  # 3 bytes < 4-byte words pair
+
+    argv = ["swap", "words", str(src)]
+    if allow_truncate:
+        argv.append("--allow-truncate")
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    with pytest.raises(
+        RomToolError, match="smaller than one 4-byte pair; nothing to swap"
+    ):
+        cmd_swap(args)
+    assert not (tmp_path / "tiny.words.bin").exists()
+
+
+def test_cmd_swap_non_multiple_without_allow_truncate_raises(tmp_path):
+    src = tmp_path / "odd.bin"
+    src.write_bytes(bytes(10))  # 10 bytes, dwords pair is 8 -> 2 trailing
+
+    parser = build_parser()
+    args = parser.parse_args(["swap", "dwords", str(src)])
+
+    with pytest.raises(RomToolError) as exc_info:
+        cmd_swap(args)
+    message = str(exc_info.value)
+    assert "has size 10, not a multiple of 8" in message
+    assert "2 trailing bytes" in message
+    assert "--allow-truncate" in message
+    assert not (tmp_path / "odd.dwords.bin").exists()
+
+
+def test_cmd_swap_non_multiple_still_prints_input_checksum(tmp_path, capsys):
+    src = tmp_path / "odd.bin"
+    src.write_bytes(b"\x01\x02\x03")
+
+    parser = build_parser()
+    args = parser.parse_args(["swap", "bytes", str(src)])
+
+    with pytest.raises(RomToolError):
+        cmd_swap(args)
+
+    captured = capsys.readouterr()
+    sum_hex, crc16_hex, crc32_hex, md5_hex = core.checksums(src.read_bytes())
+    assert (
+        f"{src}: sum={sum_hex} crc16={crc16_hex} crc32={crc32_hex} "
+        f"md5={md5_hex}" in captured.out
+    )
+
+
+def test_cmd_swap_allow_truncate_drops_tail_and_warns(tmp_path, capsys):
+    src = tmp_path / "odd.bin"
+    src.write_bytes(bytes.fromhex("0011223344"))  # 5 bytes, bytes pair is 2
+
+    parser = build_parser()
+    args = parser.parse_args(["swap", "bytes", str(src), "--allow-truncate"])
+    assert cmd_swap(args) == 0
+
+    out = tmp_path / "odd.bytes.bin"
+    assert out.read_bytes() == bytes.fromhex("11003322")
+
+    captured = capsys.readouterr()
+    assert (
+        f"warning: truncating 1 trailing byte(s) from {src} to make its "
+        "size a multiple of 2" in captured.err
+    )
+
+
+def test_cmd_swap_output_same_as_input_raises_and_leaves_input(tmp_path):
+    src = tmp_path / "in.bin"
+    original = bytes.fromhex("0011223344556677")
+    src.write_bytes(original)
+
+    parser = build_parser()
+    args = parser.parse_args(["swap", "bytes", str(src), "-o", str(src)])
+
+    with pytest.raises(RomToolError, match="same file as the input"):
+        cmd_swap(args)
+    assert src.read_bytes() == original
+
+
+def test_cmd_swap_output_same_as_input_via_different_spelling_raises(
+    tmp_path, monkeypatch
+):
+    src = tmp_path / "in.bin"
+    original = bytes.fromhex("0011223344556677")
+    src.write_bytes(original)
+    monkeypatch.chdir(tmp_path)
+
+    parser = build_parser()
+    args = parser.parse_args(["swap", "bytes", str(src), "-o", "./in.bin"])
+
+    with pytest.raises(RomToolError, match="same file as the input"):
+        cmd_swap(args)
+    assert src.read_bytes() == original
+
+
+def test_main_swap_empty_input_reports_error_exit_1(tmp_path, capsys):
+    src = tmp_path / "empty.bin"
+    src.write_bytes(b"")
+
+    exit_code = main(["swap", "bytes", str(src)])
+
+    assert exit_code == 1
+    captured = capsys.readouterr()
+    assert f"error: {src} is empty; nothing to swap" in captured.err

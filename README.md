@@ -72,6 +72,30 @@ don't fill a complete row; use with caution.
     unique (1 files):
       high.bin (md5=9F86D081884C7D659A2FEAA0C55AD015)
     
+- **`swap`** — reads one file and swaps each adjacent pair of bytes,
+  words (2 bytes), dwords (4 bytes), or qwords (8 bytes), writing the
+  result to a new file.  Handy for fixing "byte-swapped" dumps or ones
+  whose words were read in the wrong order.  Swapping twice with the same
+  mode gives back the original file.
+
+For example, given 8 bytes of input:
+
+    00 11 22 33 44 55 66 77    original
+    11 00 33 22 55 44 77 66    swap bytes
+    22 33 00 11 66 77 44 55    swap words
+    44 55 66 77 00 11 22 33    swap dwords
+
+Without `-o` the output is written next to the input as
+`<name>.<mode>.bin`; the input file is never overwritten.  Input size
+must be a multiple of the pair size (2, 4, 8, or 16 bytes);
+`--allow-truncate` relaxes that by dropping trailing bytes that don't
+fill a complete pair; use with caution.  Empty files are rejected.
+
+    romtool swap {bytes,words,dwords,qwords} inputfile [-o outputfile] [--allow-truncate]
+    romtool swap bytes Game.bin
+    # writes Game.bytes.bin
+    romtool swap dwords Game.rom -o Game.fixed.rom
+
 ## Install and run (app only, no test framework)
 
     git clone https://github.com/mj1911/romtool

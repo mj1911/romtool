@@ -272,13 +272,45 @@ def _swap_output_path(args: argparse.Namespace) -> Path:
 
 def cmd_swap(args: argparse.Namespace) -> int:
     unit = _SWAP_UNITS[args.mode]
+    pair = 2 * unit
 
     data = _read_file(args.input)
     # Printed before truncation: this checksum is of the full on-disk
     # file, not the truncated data used below.
     _print_checksum_line(args.input, data)
 
+    if not data:
+        raise RomToolError(f"{args.input} is empty; nothing to swap")
+    if len(data) < pair:
+        # Checked before the multiple-of test: --allow-truncate can't help
+        # here, since truncating would leave nothing to swap.
+        raise RomToolError(
+            f"{args.input} has size {len(data)}, smaller than one "
+            f"{pair}-byte pair; nothing to swap"
+        )
+    remainder = len(data) % pair
+    if remainder != 0:
+        if not args.allow_truncate:
+            raise RomToolError(
+                f"{args.input} has size {len(data)}, not a multiple of "
+                f"{pair} ({args.mode} swap works on {pair}-byte pairs; "
+                f"{remainder} trailing bytes); use --allow-truncate to "
+                "drop them, or fix the input"
+            )
+        print(
+            f"warning: truncating {remainder} trailing byte(s) from "
+            f"{args.input} to make its size a multiple of {pair}",
+            file=sys.stderr,
+        )
+        data = data[: len(data) - remainder]
+
     output = _swap_output_path(args)
+    if output.resolve() == args.input.resolve():
+        raise RomToolError(
+            f"output {output} is the same file as the input; choose a "
+            "different -o"
+        )
+
     swapped = core.swap_pairs(data, unit)
     _write_output(output, swapped)
     _print_checksum_line(output, swapped)
