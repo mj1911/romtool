@@ -121,6 +121,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--allow-truncate", action="store_true", default=False
     )
 
+    endian_parser = subparsers.add_parser(
+        "endian",
+        help="Reverse bit order in each byte, or byte order in each "
+        "word/dword/qword",
+    )
+    endian_parser.add_argument("mode", choices=_UNITS)
+    endian_parser.add_argument("input", type=Path)
+    endian_parser.add_argument("-o", "--output", type=Path, default=None)
+    endian_parser.add_argument(
+        "--allow-truncate", action="store_true", default=False
+    )
+
     return parser
 
 
@@ -338,6 +350,19 @@ def cmd_swap(args: argparse.Namespace) -> int:
     )
 
 
+def cmd_endian(args: argparse.Namespace) -> int:
+    unit = _UNITS[args.mode]
+    if unit == 1:
+        # "bytes": a byte has no byte order, so reverse its bits instead.
+        transform = core.reverse_bits
+    else:
+        transform = partial(core.reverse_units, unit=unit)
+    # args.mode minus its trailing "s" names one unit: "dword", "qword"...
+    return _run_block_transform(
+        args, unit, args.mode[:-1], "reverse", transform
+    )
+
+
 def _common_prefix_dir(paths: list[Path]) -> Path | None:
     """Longest common ancestor directory shared by every path in
     `paths`, computed from each path's as-given string form (not
@@ -419,6 +444,7 @@ _COMMANDS = {
     "split": cmd_split,
     "compare": cmd_compare,
     "swap": cmd_swap,
+    "endian": cmd_endian,
 }
 
 

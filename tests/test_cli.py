@@ -12,6 +12,7 @@ from romtool.cli import (
     RomToolError,
     cmd_combine,
     cmd_compare,
+    cmd_endian,
     cmd_split,
     cmd_swap,
 )
@@ -1126,3 +1127,255 @@ def test_main_swap_empty_input_reports_error_exit_1(tmp_path, capsys):
     assert exit_code == 1
     captured = capsys.readouterr()
     assert f"error: {src} is empty; nothing to swap" in captured.err
+
+
+def test_parser_endian_basic():
+    parser = build_parser()
+    args = parser.parse_args(["endian", "dwords", "in.bin"])
+    assert args.command == "endian"
+    assert args.mode == "dwords"
+    assert str(args.input) == "in.bin"
+    assert args.output is None
+    assert args.allow_truncate is False
+
+
+@pytest.mark.parametrize("mode", ["bytes", "words", "dwords", "qwords"])
+def test_parser_endian_accepts_every_mode(mode):
+    parser = build_parser()
+    args = parser.parse_args(["endian", mode, "in.bin"])
+    assert args.mode == mode
+
+
+def test_parser_endian_invalid_mode_rejected(capsys):
+    parser = build_parser()
+    with pytest.raises(SystemExit) as exc_info:
+        parser.parse_args(["endian", "nibbles", "in.bin"])
+    assert exc_info.value.code == 2
+
+
+def test_parser_endian_requires_input(capsys):
+    parser = build_parser()
+    with pytest.raises(SystemExit) as exc_info:
+        parser.parse_args(["endian", "words"])
+    assert exc_info.value.code == 2
+
+
+def test_cmd_endian_auto_names_output_and_reverses(tmp_path):
+    src = tmp_path / "Game.rom"
+    src.write_bytes(bytes.fromhex("0011223344556677"))
+
+    parser = build_parser()
+    args = parser.parse_args(["endian", "dwords", str(src)])
+    assert cmd_endian(args) == 0
+
+    out = tmp_path / "Game.endian-dwords.bin"
+    assert out.read_bytes() == bytes.fromhex("3322110077665544")
+    # The input is never modified.
+    assert src.read_bytes() == bytes.fromhex("0011223344556677")
+
+
+def test_cmd_endian_with_output_writes_to_given_path(tmp_path):
+    src = tmp_path / "in.bin"
+    dest = tmp_path / "fixed.rom"
+    src.write_bytes(bytes.fromhex("0011223344556677"))
+
+    parser = build_parser()
+    args = parser.parse_args(["endian", "qwords", str(src), "-o", str(dest)])
+    assert cmd_endian(args) == 0
+
+    assert dest.read_bytes() == bytes.fromhex("7766554433221100")
+    assert not (tmp_path / "in.endian-qwords.bin").exists()
+
+
+@pytest.mark.parametrize(
+    "mode,unit", [("bytes", 1), ("words", 2), ("dwords", 4), ("qwords", 8)]
+)
+def test_cmd_endian_every_mode_matches_core(tmp_path, mode, unit):
+    data = bytes(range(32))
+    src = tmp_path / "in.bin"
+    src.write_bytes(data)
+
+    parser = build_parser()
+    args = parser.parse_args(["endian", mode, str(src)])
+    assert cmd_endian(args) == 0
+
+    if unit == 1:
+        expected = core.reverse_bits(data)
+    else:
+        expected = core.reverse_units(data, unit)
+    out = tmp_path / f"in.endian-{mode}.bin"
+    assert out.read_bytes() == expected
+
+
+def test_cmd_endian_bytes_reverses_bits(tmp_path):
+    src = tmp_path / "bus.bin"
+    src.write_bytes(bytes.fromhex("0112F080"))
+
+    parser = build_parser()
+    args = parser.parse_args(["endian", "bytes", str(src)])
+    assert cmd_endian(args) == 0
+
+    out = tmp_path / "bus.endian-bytes.bin"
+    assert out.read_bytes() == bytes.fromhex("80480F01")
+
+
+def test_cmd_endian_bytes_accepts_odd_length_without_warning(
+    tmp_path, capsys
+):
+    src = tmp_path / "odd.bin"
+    src.write_bytes(bytes.fromhex("010203"))
+
+    parser = build_parser()
+    args = parser.parse_args(["endian", "bytes", str(src)])
+    assert cmd_endian(args) == 0
+
+    out = tmp_path / "odd.endian-bytes.bin"
+    assert out.read_bytes() == bytes.fromhex("8040C0")
+    assert capsys.readouterr().err == ""
+
+
+def test_cmd_endian_prints_input_and_output_checksums(tmp_path, capsys):
+    src = tmp_path / "in.bin"
+    src.write_bytes(bytes.fromhex("0011223344556677"))
+
+    parser = build_parser()
+    args = parser.parse_args(["endian", "words", str(src)])
+    assert cmd_endian(args) == 0
+
+    out = tmp_path / "in.endian-words.bin"
+    captured = capsys.readouterr()
+    for path in (src, out):
+        sum_hex, crc16_hex, crc32_hex, md5_hex = core.checksums(
+            path.read_bytes()
+        )
+        assert (
+            f"{path}: sum={sum_hex} crc16={crc16_hex} crc32={crc32_hex} "
+            f"md5={md5_hex}" in captured.out
+        )
+
+
+def test_cmd_endian_empty_input_raises_and_writes_nothing(tmp_path):
+    src = tmp_path / "empty.bin"
+    src.write_bytes(b"")
+
+    parser = build_parser()
+    args = parser.parse_args(["endian", "bytes", str(src)])
+
+    with pytest.raises(RomToolError, match="is empty; nothing to reverse"):
+        cmd_endian(args)
+    assert not (tmp_path / "empty.endian-bytes.bin").exists()
+
+
+@pytest.mark.parametrize("allow_truncate", [False, True])
+def test_cmd_endian_smaller_than_one_unit_raises(tmp_path, allow_truncate):
+    src = tmp_path / "tiny.bin"
+    src.write_bytes(b"\x01\x02\x03")  # 3 bytes < 4-byte dword
+
+    argv = ["endian", "dwords", str(src)]
+    if allow_truncate:
+        argv.append("--allow-truncate")
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    with pytest.raises(
+        RomToolError, match="smaller than one 4-byte dword; nothing to reverse"
+    ):
+        cmd_endian(args)
+    assert not (tmp_path / "tiny.endian-dwords.bin").exists()
+
+
+def test_cmd_endian_non_multiple_without_allow_truncate_raises(tmp_path):
+    src = tmp_path / "odd.bin"
+    src.write_bytes(bytes(10))  # 10 bytes, qword is 8 -> 2 trailing
+
+    parser = build_parser()
+    args = parser.parse_args(["endian", "qwords", str(src)])
+
+    with pytest.raises(RomToolError) as exc_info:
+        cmd_endian(args)
+    message = str(exc_info.value)
+    assert "has size 10, not a multiple of 8" in message
+    assert "(qwords endian works on 8-byte qwords; 2 trailing bytes)" in message
+    assert "--allow-truncate" in message
+    assert not (tmp_path / "odd.endian-qwords.bin").exists()
+
+
+def test_cmd_endian_allow_truncate_drops_tail_and_warns(tmp_path, capsys):
+    src = tmp_path / "odd.bin"
+    src.write_bytes(bytes.fromhex("0011223344"))  # 5 bytes, word is 2
+
+    parser = build_parser()
+    args = parser.parse_args(
+        ["endian", "words", str(src), "--allow-truncate"]
+    )
+    assert cmd_endian(args) == 0
+
+    out = tmp_path / "odd.endian-words.bin"
+    assert out.read_bytes() == bytes.fromhex("11003322")
+
+    captured = capsys.readouterr()
+    assert (
+        f"warning: truncating 1 trailing byte(s) from {src} to make its "
+        "size a multiple of 2" in captured.err
+    )
+
+
+def test_cmd_endian_output_same_as_input_raises_and_leaves_input(tmp_path):
+    src = tmp_path / "in.bin"
+    original = bytes.fromhex("0011223344556677")
+    src.write_bytes(original)
+
+    parser = build_parser()
+    args = parser.parse_args(["endian", "words", str(src), "-o", str(src)])
+
+    with pytest.raises(RomToolError, match="same file as the input"):
+        cmd_endian(args)
+    assert src.read_bytes() == original
+
+
+def test_main_endian_end_to_end(tmp_path):
+    src = tmp_path / "in.bin"
+    src.write_bytes(b"\x01\x02\x03\x04")
+
+    exit_code = main(["endian", "dwords", str(src)])
+
+    assert exit_code == 0
+    out = tmp_path / "in.endian-dwords.bin"
+    assert out.read_bytes() == b"\x04\x03\x02\x01"
+
+
+def test_main_endian_empty_input_reports_error_exit_1(tmp_path, capsys):
+    src = tmp_path / "empty.bin"
+    src.write_bytes(b"")
+
+    exit_code = main(["endian", "words", str(src)])
+
+    assert exit_code == 1
+    captured = capsys.readouterr()
+    assert f"error: {src} is empty; nothing to reverse" in captured.err
+
+
+@pytest.mark.parametrize("mode", ["bytes", "words", "dwords", "qwords"])
+def test_main_endian_twice_roundtrips(tmp_path, mode):
+    src = tmp_path / "in.bin"
+    once = tmp_path / "once.bin"
+    twice = tmp_path / "twice.bin"
+    src.write_bytes(bytes(range(64)))
+
+    assert main(["endian", mode, str(src), "-o", str(once)]) == 0
+    assert main(["endian", mode, str(once), "-o", str(twice)]) == 0
+
+    assert twice.read_bytes() == src.read_bytes()
+    assert once.read_bytes() != src.read_bytes()
+
+
+def test_main_endian_words_matches_swap_bytes(tmp_path):
+    src = tmp_path / "in.bin"
+    src.write_bytes(bytes(range(64)))
+
+    assert main(["endian", "words", str(src)]) == 0
+    assert main(["swap", "bytes", str(src)]) == 0
+
+    endian_out = (tmp_path / "in.endian-words.bin").read_bytes()
+    swap_out = (tmp_path / "in.swap-bytes.bin").read_bytes()
+    assert endian_out == swap_out
